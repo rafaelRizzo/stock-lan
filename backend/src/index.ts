@@ -1,0 +1,127 @@
+import { logger } from './utils/logger'
+import Fastify from 'fastify'
+import helmet from '@fastify/helmet'
+import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
+import fastifyJwt from '@fastify/jwt'
+import cookie from '@fastify/cookie'
+
+import { authRoutes } from './modules/auth/auth.routes'
+import { userRoutes } from './modules/users/user.routes'
+import { categoryRoutes } from './modules/categories/categories.routes'
+import { unitRoutes } from './modules/units/units.routes'
+import { supplierRoutes } from './modules/suppliers/suppliers.routes'
+import { productRoutes } from './modules/products/products.routes'
+import { stockEntryRoutes } from './modules/stockEntries/stockEntries.routes'
+import { stockExitRoutes } from './modules/stockExits/stockExits.routes'
+import { stockMovementRoutes } from './modules/stockMovements/stockMovements.routes'
+
+const app = Fastify({
+    trustProxy: true,
+    loggerInstance: logger
+})
+
+// 1. IPs Permitidos
+const ALLOWED_IPS = (process.env.ALLOWED_IPS ?? '127.0.0.1,::1')
+    .split(',')
+    .map(ip => ip.trim())
+    .filter(Boolean)
+
+app.addHook('onRequest', (req, reply, done) => {
+    const clientIp = req.ip
+    if (!ALLOWED_IPS.includes(clientIp)) {
+        app.log.warn(`Blocked request from IP: ${clientIp}`)
+        reply.status(403).send({ success: false, message: 'Forbidden: IP not allowed' })
+        return
+    }
+    done()
+})
+
+// 2. CORS
+const ALLOWED_ORIGINS = (process.env.ALLOWED_CORS ?? 'http://localhost:3000,http://127.0.0.1:3000')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean)
+
+await app.register(cors, {
+    origin: (origin, cb) => {
+        if (!origin) { cb(null, true); return }
+        if (ALLOWED_ORIGINS.includes(origin)) { cb(null, true); return }
+        if (process.env.NODE_ENV !== 'production') {
+            if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+                cb(null, true)
+                return
+            }
+        }
+        cb(new Error('Not allowed by CORS'), false)
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    maxAge: 86400,
+})
+
+// 3. Cookie (antes do JWT)
+await app.register(cookie, {
+    secret: process.env.COOKIE_SECRET || 'your-secret-key-change-this',
+    parseOptions: {}
+})
+
+// 4. JWT
+await app.register(fastifyJwt, {
+    secret: process.env.JWT_SECRET || 'supersecret',
+    sign: { expiresIn: '7d' }
+})
+
+// 5. Helmet
+await app.register(helmet, {
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'"],
+            imgSrc: ["'self'", 'data:', 'https:'],
+        },
+    },
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+})
+
+// 6. Rate Limiting
+await app.register(rateLimit, {
+    max: 100,
+    timeWindow: '1 minute',
+    allowList: ['127.0.0.1']
+})
+
+// ==================== ROTAS ====================
+await app.register(authRoutes)
+await app.register(userRoutes)
+await app.register(categoryRoutes)
+await app.register(unitRoutes)
+await app.register(supplierRoutes)
+await app.register(productRoutes)
+await app.register(stockEntryRoutes)
+await app.register(stockExitRoutes)
+await app.register(stockMovementRoutes)
+
+app.get('/health', () => ({ status: 'ok' }))
+
+// ==================== GRACEFUL SHUTDOWN ====================
+const shutdown = async (signal: string) => {
+    app.log.info(`Received ${signal}, shutting down...`)
+    await app.close()
+    process.exit(0)
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'))
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+
+try {
+    await app.listen({
+        port: Number(process.env.PORT) || 3333,
+        host: '0.0.0.0'
+    })
+} catch (err) {
+    app.log.error(err)
+    process.exit(1)
+}
