@@ -1,7 +1,7 @@
 export default function Page() {
     return (
         <div>
-            <h1>Entradas</h1>
+            <h1>Unidades</h1>
         </div>
     )
 }

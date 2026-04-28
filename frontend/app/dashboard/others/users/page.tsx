@@ -1,7 +1,7 @@
 export default function Page() {
     return (
         <div>
-            <h1>Movimentações</h1>
+            <h1>Usuários</h1>
         </div>
     )
 }

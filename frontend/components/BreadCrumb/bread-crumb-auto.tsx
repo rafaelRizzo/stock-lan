@@ -31,7 +31,7 @@ export function BreadcrumbAuto() {
                                 )}
                             </BreadcrumbItem>
 
-                            {!isLast && <BreadcrumbSeparator />}
+                            {!isLast && <BreadcrumbSeparator className="ml-2" />}
                         </div>
                     )
                 })}
