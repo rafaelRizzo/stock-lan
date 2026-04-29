@@ -1,18 +1,18 @@
 import { z } from 'zod'
 
 export const createProductSchema = z.object({
-    code: z.string().max(100).trim().optional(),
+    code: z.string().min(1).max(100).trim().nullable().optional(),
     name: z.string().min(1).max(255).trim(),
     description: z.string().trim().optional(),
-    category_id: z.uuid().optional(),
-    unit_id: z.uuid(),
+    category_id: z.uuid().nullable().optional(),
+    unit_id: z.uuid().nullable().optional(),
     cost_price: z.number().min(0).default(0),
     sale_price: z.number().min(0).default(0),
     min_stock: z.number().min(0).default(0)
 })
 
 export const updateProductSchema = z.object({
-    code: z.string().max(100).trim().nullable().optional(),
+    code: z.string().min(1).max(100).trim().nullable().optional(),
     name: z.string().min(1).max(255).trim().optional(),
     description: z.string().trim().nullable().optional(),
     category_id: z.uuid().nullable().optional(),

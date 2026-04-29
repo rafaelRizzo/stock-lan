@@ -17,13 +17,15 @@ export const getProductById = async (id: string) => {
 }
 
 export const createProduct = async (data: CreateProductInput) => {
-    if (data.code) {
+    if (data.code != null) {
         const [existing] = await db.select().from(products).where(eq(products.code, data.code))
         if (existing) throw new AppError('Já existe um produto com esse código', 409)
     }
 
-    const [unit] = await db.select().from(units).where(eq(units.id, data.unit_id))
-    if (!unit) throw new AppError('Unidade não encontrada', 404)
+    if (data.unit_id) {
+        const [unit] = await db.select().from(units).where(eq(units.id, data.unit_id))
+        if (!unit) throw new AppError('Unidade não encontrada', 404)
+    }
 
     if (data.category_id) {
         const [cat] = await db.select().from(categories).where(eq(categories.id, data.category_id))
@@ -46,7 +48,7 @@ export const createProduct = async (data: CreateProductInput) => {
 }
 
 export const updateProduct = async (id: string, data: UpdateProductInput) => {
-    if (data.code) {
+    if (data.code != null) {
         const [conflict] = await db.select().from(products).where(eq(products.code, data.code))
         if (conflict && conflict.id !== id) throw new AppError('Já existe um produto com esse código', 409)
     }

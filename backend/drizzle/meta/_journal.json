@@ -15,6 +15,20 @@
       "when": 1777334655396,
       "tag": "0001_eager_leech",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777422810656,
+      "tag": "0002_gray_sunset_bain",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777428022772,
+      "tag": "0003_harsh_morlun",
+      "breakpoints": true
     }
   ]
 }

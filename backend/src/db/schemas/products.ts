@@ -1,4 +1,4 @@
-import { pgTable, uuid, timestamp, varchar, text, boolean, numeric } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, timestamp, varchar, text, boolean, numeric, uniqueIndex } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 import { categories } from './categories'
 import { units } from './units'
@@ -6,7 +6,7 @@ import { units } from './units'
 export const products = pgTable('products', {
     id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
 
-    code: varchar('code', { length: 100 }).unique(),
+    code: varchar('code', { length: 100 }),
 
     name: varchar('name', { length: 255 }).notNull(),
 
@@ -14,7 +14,7 @@ export const products = pgTable('products', {
 
     category_id: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
 
-    unit_id: uuid('unit_id').notNull().references(() => units.id),
+    unit_id: uuid('unit_id').references(() => units.id, { onDelete: 'set null' }),
 
     cost_price: numeric('cost_price', { precision: 10, scale: 2 }).notNull().default('0'),
 
@@ -32,4 +32,6 @@ export const products = pgTable('products', {
         .notNull()
         .defaultNow()
         .$onUpdate(() => new Date()),
-})
+}, (table) => [
+    uniqueIndex('products_code_unique_idx').on(table.code).where(sql`${table.code} IS NOT NULL`),
+])

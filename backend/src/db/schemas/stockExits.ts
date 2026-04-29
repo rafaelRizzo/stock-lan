@@ -1,7 +1,9 @@
-import { pgTable, uuid, timestamp, varchar, text, numeric } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, timestamp, varchar, text, numeric, pgEnum } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 import { products } from './products'
 import { users } from './users'
+
+export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'paid', 'partial', 'cancelled'])
 
 export const stockExits = pgTable('stock_exits', {
     id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -13,6 +15,10 @@ export const stockExits = pgTable('stock_exits', {
     notes: text('notes'),
 
     total_value: numeric('total_value', { precision: 12, scale: 2 }).notNull().default('0'),
+
+    payment_status: paymentStatusEnum('payment_status').notNull().default('pending'),
+
+    paid_at: timestamp('paid_at', { withTimezone: true }),
 
     exit_date: timestamp('exit_date', { withTimezone: true }).notNull().defaultNow(),
 

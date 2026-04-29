@@ -1,13 +1,22 @@
 import { db } from '../../db/config/db'
-import { desc, eq, inArray } from 'drizzle-orm'
+import { desc, eq, inArray, and } from 'drizzle-orm'
 import { AppError } from '../../utils/handlers/app.error'
 import { products } from '../../db/schemas/products'
 import { stockExits, stockExitItems } from '../../db/schemas/stockExits'
 import { stockMovements } from '../../db/schemas/stockMovements'
-import type { CreateStockExitInput } from './schemas/stockExits.schemas'
+import type { CreateStockExitInput, UpdatePaymentStatusInput, PaymentStatus } from './schemas/stockExits.schemas'
 
-export const getAllStockExits = async (limit = 50, offset = 0) => {
-    const exits = await db.select().from(stockExits).orderBy(desc(stockExits.created_at)).limit(limit).offset(offset)
+export const getAllStockExits = async (limit = 50, offset = 0, paymentStatus?: string) => {
+    const statusList = paymentStatus
+        ? (paymentStatus.split(',').map(s => s.trim()).filter(Boolean) as PaymentStatus[])
+        : undefined
+
+    const exits = await db.select().from(stockExits)
+        .where(statusList?.length ? inArray(stockExits.payment_status, statusList) : undefined)
+        .orderBy(desc(stockExits.created_at))
+        .limit(limit)
+        .offset(offset)
+
     if (!exits.length) return []
 
     const exitIds = exits.map(e => e.id)
@@ -41,7 +50,6 @@ export const createStockExit = async (data: CreateStockExitInput, userId: string
 
     const productMap = new Map(foundProducts.map(p => [p.id, p]))
 
-    // running balance para validação e uso na transação (sem double-decrement)
     const runningBalance = new Map(foundProducts.map(p => [p.id, parseFloat(p.current_stock ?? '0')]))
 
     for (const item of data.items) {
@@ -58,7 +66,6 @@ export const createStockExit = async (data: CreateStockExitInput, userId: string
 
     const totalValue = data.items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0)
 
-    // restaura running balance para usar como rastreio dentro da transação
     const txBalance = new Map(foundProducts.map(p => [p.id, parseFloat(p.current_stock ?? '0')]))
 
     const exit = await db.transaction(async (tx) => {
@@ -67,6 +74,8 @@ export const createStockExit = async (data: CreateStockExitInput, userId: string
             destination: data.destination ?? null,
             notes: data.notes ?? null,
             total_value: totalValue.toFixed(2),
+            payment_status: data.payment_status ?? 'pending',
+            paid_at: data.paid_at ? new Date(data.paid_at) : (data.payment_status === 'paid' ? new Date() : null),
             exit_date: data.exit_date ? new Date(data.exit_date) : new Date(),
             created_by: userId,
         }).returning()
@@ -107,6 +116,25 @@ export const createStockExit = async (data: CreateStockExitInput, userId: string
     })
 
     return exit
+}
+
+export const updatePaymentStatus = async (id: string, data: UpdatePaymentStatusInput) => {
+    const [exit] = await db.select().from(stockExits).where(eq(stockExits.id, id))
+    if (!exit) throw new AppError('Saída não encontrada', 404)
+
+    const paidAt = data.paid_at
+        ? new Date(data.paid_at)
+        : data.payment_status === 'paid' ? new Date() : null
+
+    const [updated] = await db.update(stockExits)
+        .set({
+            payment_status: data.payment_status,
+            paid_at: paidAt,
+        })
+        .where(eq(stockExits.id, id))
+        .returning()
+
+    return updated
 }
 
 export const deleteStockExit = async (id: string, userId: string) => {
