@@ -57,6 +57,7 @@ export default function StockEntriesPage() {
         handleSubmit,
         reset,
         control,
+        setValue,
         formState: { errors, isSubmitting },
     } = useForm<StockEntryForm>({
         defaultValues: {
@@ -203,6 +204,7 @@ export default function StockEntriesPage() {
                                                     value={f.value}
                                                     onChange={f.onChange}
                                                     products={products}
+                                                    onSelect={(p) => setValue(`items.${index}.unit_cost`, Number(p.cost_price))}
                                                 />
                                             )}
                                         />
@@ -256,6 +258,7 @@ export default function StockEntriesPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Fornecedor</TableHead>
+                            <TableHead>Produtos</TableHead>
                             <TableHead>Nº NF</TableHead>
                             <TableHead>Observação</TableHead>
                             <TableHead>Valor Total</TableHead>
@@ -268,7 +271,7 @@ export default function StockEntriesPage() {
                         {loading ? (
                             Array.from({ length: 4 }).map((_, i) => (
                                 <TableRow key={i}>
-                                    {Array.from({ length: 6 }).map((__, j) => (
+                                    {Array.from({ length: 7 }).map((__, j) => (
                                         <TableCell key={j}><Skeleton className="h-4 w-24" /></TableCell>
                                     ))}
                                     <TableCell />
@@ -276,7 +279,7 @@ export default function StockEntriesPage() {
                             ))
                         ) : entries.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center text-muted-foreground py-6 text-sm">
+                                <TableCell colSpan={8} className="text-center text-muted-foreground py-6 text-sm">
                                     Nenhuma entrada encontrada
                                 </TableCell>
                             </TableRow>
@@ -284,6 +287,20 @@ export default function StockEntriesPage() {
                             entries.map((entry) => (
                                 <TableRow key={entry.id}>
                                     <TableCell className="font-medium">{supplierName(entry.supplier_id)}</TableCell>
+                                    <TableCell>
+                                        {entry.items?.length ? (
+                                            <ul className="flex flex-col gap-0.5">
+                                                {entry.items.map((i) => (
+                                                    <li key={i.product_id} className="flex items-center gap-1.5 text-xs">
+                                                        <span className="font-medium">{i.product_name}</span>
+                                                        <span className="text-muted-foreground">× {Number(i.quantity).toLocaleString("pt-BR")}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <span className="text-muted-foreground text-sm">—</span>
+                                        )}
+                                    </TableCell>
                                     <TableCell className="text-muted-foreground text-sm">{entry.invoice_number ?? "—"}</TableCell>
                                     <TableCell className="text-muted-foreground text-sm">{entry.notes ?? "—"}</TableCell>
                                     <TableCell className="text-muted-foreground text-sm">{fmt(entry.total_value)}</TableCell>

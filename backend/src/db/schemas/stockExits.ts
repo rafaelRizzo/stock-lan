@@ -2,6 +2,7 @@ import { pgTable, uuid, timestamp, varchar, text, numeric, pgEnum } from 'drizzl
 import { sql } from 'drizzle-orm'
 import { products } from './products'
 import { users } from './users'
+import { debtors } from './debtors'
 
 export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'paid', 'partial', 'cancelled'])
 
@@ -17,6 +18,8 @@ export const stockExits = pgTable('stock_exits', {
     total_value: numeric('total_value', { precision: 12, scale: 2 }).notNull().default('0'),
 
     payment_status: paymentStatusEnum('payment_status').notNull().default('pending'),
+
+    debtor_id: uuid('debtor_id').references(() => debtors.id, { onDelete: 'set null' }),
 
     paid_at: timestamp('paid_at', { withTimezone: true }),
 

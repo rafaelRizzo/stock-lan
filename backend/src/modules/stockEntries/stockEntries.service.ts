@@ -7,7 +7,30 @@ import { stockMovements } from '../../db/schemas/stockMovements'
 import type { CreateStockEntryInput } from './schemas/stockEntries.schemas'
 
 export const getAllStockEntries = async (limit = 50, offset = 0) => {
-    return db.select().from(stockEntries).orderBy(desc(stockEntries.created_at)).limit(limit).offset(offset)
+    const entries = await db.select().from(stockEntries).orderBy(desc(stockEntries.created_at)).limit(limit).offset(offset)
+    if (!entries.length) return []
+
+    const entryIds = entries.map(e => e.id)
+    const items = await db
+        .select({
+            entry_id: stockEntryItems.entry_id,
+            product_id: stockEntryItems.product_id,
+            product_name: products.name,
+            quantity: stockEntryItems.quantity,
+            unit_cost: stockEntryItems.unit_cost,
+        })
+        .from(stockEntryItems)
+        .innerJoin(products, eq(stockEntryItems.product_id, products.id))
+        .where(inArray(stockEntryItems.entry_id, entryIds))
+
+    const itemsByEntry = new Map<string, typeof items>()
+    for (const item of items) {
+        const list = itemsByEntry.get(item.entry_id) ?? []
+        list.push(item)
+        itemsByEntry.set(item.entry_id, list)
+    }
+
+    return entries.map(e => ({ ...e, items: itemsByEntry.get(e.id) ?? [] }))
 }
 
 export const getStockEntryById = async (id: string) => {

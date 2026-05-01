@@ -13,8 +13,8 @@ export const createStockExit = async (req: FastifyRequest, reply: FastifyReply) 
 
 export const getStockExits = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-        const { limit, offset, payment_status } = listExitsQuerySchema.parse(req.query)
-        const exits = await StockExitService.getAllStockExits(limit, offset, payment_status)
+        const { limit, offset, payment_status, debtor_id } = listExitsQuerySchema.parse(req.query)
+        const exits = await StockExitService.getAllStockExits(limit, offset, payment_status, debtor_id)
         return reply.status(200).send({ success: true, message: 'Saídas encontradas.', exits })
     } catch (error) { return handleError(reply, error) }
 }

@@ -6,7 +6,9 @@ import { Plus, Trash2, X, ChevronDown, ChevronUp, CreditCard, Clock, CheckCircle
 
 import { useStockExits, type StockExitForm, type StockExit } from "@/app/hooks/useStockExits"
 import { useProducts } from "@/app/hooks/useProducts"
+import { useDebtors } from "@/app/hooks/useDebtors"
 import { ProductCombobox } from "@/components/product-combobox"
+import { DebtorCombobox } from "@/components/debtor-combobox"
 import { DateTimePicker } from "@/components/date-time-picker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,6 +51,7 @@ const fmt = (v: string | number) =>
 export default function StockExitsPage() {
     const { exits, loading, filter, setFilter, createExit, markAsPaid, deleteExit } = useStockExits()
     const { products } = useProducts()
+    const { debtors } = useDebtors()
     const [open, setOpen] = useState(false)
     const [expanded, setExpanded] = useState<string | null>(null)
 
@@ -65,6 +68,7 @@ export default function StockExitsPage() {
             exit_date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
             payment_status: "paid",
             paid_at: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
+            debtor_id: "",
             items: [{ product_id: "", quantity: 1, unit_price: 0 }],
         },
     })
@@ -75,12 +79,13 @@ export default function StockExitsPage() {
 
     const openCreate = () => {
         reset({
-            reason: "",
+            reason: "VENDA",
             destination: "",
             notes: "",
             exit_date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
             payment_status: "paid",
             paid_at: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
+            debtor_id: "",
             items: [{ product_id: "", quantity: 1, unit_price: 0 }],
         })
         setOpen(true)
@@ -94,6 +99,7 @@ export default function StockExitsPage() {
             notes: data.notes?.trim() || undefined,
             exit_date: new Date(data.exit_date).toISOString(),
             paid_at: data.payment_status === "paid" ? new Date(data.paid_at!).toISOString() : undefined,
+            debtor_id: data.payment_status === "pending" && data.debtor_id ? data.debtor_id : undefined,
             items: data.items.map((item) => ({
                 ...item,
                 quantity: Number(item.quantity),
@@ -108,6 +114,7 @@ export default function StockExitsPage() {
     })
 
     const productName = (id: string) => products.find((p) => p.id === id)?.name ?? "—"
+    const debtorName = (id: string | null) => id ? (debtors.find((d) => d.id === id)?.name ?? id) : null
 
     return (
         <div className="flex flex-col gap-4">
@@ -194,6 +201,23 @@ export default function StockExitsPage() {
                                             <DateTimePicker
                                                 value={field.value ?? ""}
                                                 onChange={field.onChange}
+                                            />
+                                        )}
+                                    />
+                                </div>
+                            )}
+
+                            {paymentStatus === "pending" && (
+                                <div className="flex flex-col gap-1 col-span-2">
+                                    <Label>Devedor</Label>
+                                    <Controller
+                                        name="debtor_id"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <DebtorCombobox
+                                                value={field.value ?? ""}
+                                                onChange={field.onChange}
+                                                debtors={debtors}
                                             />
                                         )}
                                     />
@@ -323,6 +347,11 @@ export default function StockExitsPage() {
                                 <div className="flex flex-col gap-0.5">
                                     <span className="font-medium text-sm">{exit.reason ?? "—"}</span>
                                     <span className="text-xs text-muted-foreground">{exit.destination ?? "—"}</span>
+                                    {exit.debtor_id && (
+                                        <span className="text-xs text-orange-500 font-medium">
+                                            Devedor: {debtorName(exit.debtor_id)}
+                                        </span>
+                                    )}
                                 </div>
                                 <Badge variant={exit.payment_status === "paid" ? "default" : "secondary"} className="shrink-0">
                                     {exit.payment_status === "paid" ? "Pago" : "Pendente"}
@@ -363,7 +392,11 @@ export default function StockExitsPage() {
                                 {exit.payment_status === "pending" && (
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <Button variant="outline" size="sm" className="flex-1 text-green-600 border-green-600 hover:bg-green-50 dark:hover:bg-green-950">
+                                            <Button variant="outline" size="sm" className="flex-1 text-green-600 border-green-600 hover:bg-green-50 
+                                            dark:bg-green-950
+                                            dark:text-green-500 dark:hover:bg-green-900
+                                            dark:hover:text-green-400
+                                            dark:border-green-900">
                                                 <CheckCircle className="h-4 w-4" />
                                                 Confirmar pagamento
                                             </Button>

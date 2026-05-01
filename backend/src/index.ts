@@ -15,6 +15,7 @@ import { productRoutes } from './modules/products/products.routes'
 import { stockEntryRoutes } from './modules/stockEntries/stockEntries.routes'
 import { stockExitRoutes } from './modules/stockExits/stockExits.routes'
 import { stockMovementRoutes } from './modules/stockMovements/stockMovements.routes'
+import { debtorRoutes } from './modules/debtors/debtors.routes'
 
 const app = Fastify({
     trustProxy: true,
@@ -103,6 +104,7 @@ await app.register(productRoutes)
 await app.register(stockEntryRoutes)
 await app.register(stockExitRoutes)
 await app.register(stockMovementRoutes)
+await app.register(debtorRoutes)
 
 app.get('/health', () => ({ status: 'ok' }))
 

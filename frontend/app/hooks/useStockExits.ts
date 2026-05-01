@@ -23,6 +23,7 @@ export type StockExit = {
     exit_date: string
     payment_status: "paid" | "pending"
     paid_at: string | null
+    debtor_id: string | null
     created_by: string
     created_at: string
     items: StockExitItem[]
@@ -35,6 +36,7 @@ export type StockExitForm = {
     exit_date: string
     payment_status: "paid" | "pending"
     paid_at?: string
+    debtor_id?: string
     items: {
         product_id: string
         quantity: number

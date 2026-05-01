@@ -14,6 +14,7 @@ export type StockEntry = {
     entry_date: string
     created_by: string
     created_at: string
+    items?: Array<{ entry_id: string; product_id: string; product_name: string; quantity: string; unit_cost: string }>
 }
 
 export type StockEntryItem = {

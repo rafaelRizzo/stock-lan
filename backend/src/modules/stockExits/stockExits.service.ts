@@ -6,13 +6,18 @@ import { stockExits, stockExitItems } from '../../db/schemas/stockExits'
 import { stockMovements } from '../../db/schemas/stockMovements'
 import type { CreateStockExitInput, UpdatePaymentStatusInput, PaymentStatus } from './schemas/stockExits.schemas'
 
-export const getAllStockExits = async (limit = 50, offset = 0, paymentStatus?: string) => {
+export const getAllStockExits = async (limit = 50, offset = 0, paymentStatus?: string, debtorId?: string) => {
+    const conditions = []
+
     const statusList = paymentStatus
         ? (paymentStatus.split(',').map(s => s.trim()).filter(Boolean) as PaymentStatus[])
         : undefined
 
+    if (statusList?.length) conditions.push(inArray(stockExits.payment_status, statusList))
+    if (debtorId) conditions.push(eq(stockExits.debtor_id, debtorId))
+
     const exits = await db.select().from(stockExits)
-        .where(statusList?.length ? inArray(stockExits.payment_status, statusList) : undefined)
+        .where(conditions.length ? and(...conditions) : undefined)
         .orderBy(desc(stockExits.created_at))
         .limit(limit)
         .offset(offset)
@@ -75,6 +80,7 @@ export const createStockExit = async (data: CreateStockExitInput, userId: string
             notes: data.notes ?? null,
             total_value: totalValue.toFixed(2),
             payment_status: data.payment_status ?? 'pending',
+            debtor_id: data.debtor_id ?? null,
             paid_at: data.paid_at ? new Date(data.paid_at) : (data.payment_status === 'paid' ? new Date() : null),
             exit_date: data.exit_date ? new Date(data.exit_date) : new Date(),
             created_by: userId,
