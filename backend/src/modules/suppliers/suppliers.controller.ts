@@ -1,49 +1,28 @@
-import type { FastifyRequest, FastifyReply } from 'fastify'
-import { handleError } from '../../utils/handlers/handler.errors'
-import * as SupplierService from './suppliers.service'
-import { createSupplierSchema, updateSupplierSchema, idParamSchema } from './schemas/suppliers.schemas'
+import type { FastifyReply, FastifyRequest } from "fastify";
+import { parse } from "../../lib/errors.js";
+import { getSkip, paginate } from "../../lib/pagination.js";
+import { supplierParamsSchema, supplierSchema, suppliersListSchema } from "./suppliers.schemas.js";
+import { suppliersService } from "./suppliers.service.js";
 
-export const createSupplier = async (req: FastifyRequest, reply: FastifyReply) => {
-    try {
-        const data = createSupplierSchema.parse(req.body)
-        const supplier = await SupplierService.createSupplier(data)
-        return reply.status(201).send({ success: true, message: 'Fornecedor criado com sucesso.', supplier_id: supplier.id })
-    } catch (error) { return handleError(reply, error) }
-}
-
-export const getSuppliers = async (req: FastifyRequest, reply: FastifyReply) => {
-    try {
-        const suppliers = await SupplierService.getAllSuppliers()
-        return reply.status(200).send({ success: true, message: 'Fornecedores encontrados.', suppliers })
-    } catch (error) { return handleError(reply, error) }
-}
-
-export const getSupplierById = async (req: FastifyRequest, reply: FastifyReply) => {
-    try {
-        const { id } = idParamSchema.parse(req.params)
-        const supplier = await SupplierService.getSupplierById(id)
-        if (!supplier) return reply.status(404).send({ success: false, message: 'Fornecedor não encontrado.' })
-        return reply.status(200).send({ success: true, message: 'Fornecedor encontrado.', supplier })
-    } catch (error) { return handleError(reply, error) }
-}
-
-export const updateSupplier = async (req: FastifyRequest, reply: FastifyReply) => {
-    try {
-        const { id } = idParamSchema.parse(req.params)
-        const data = updateSupplierSchema.parse(req.body)
-        const supplier = await SupplierService.getSupplierById(id)
-        if (!supplier) return reply.status(404).send({ success: false, message: 'Fornecedor não encontrado.' })
-        const updated = await SupplierService.updateSupplier(id, data)
-        return reply.status(200).send({ success: true, message: 'Fornecedor atualizado com sucesso.', supplier: updated })
-    } catch (error) { return handleError(reply, error) }
-}
-
-export const deleteSupplier = async (req: FastifyRequest, reply: FastifyReply) => {
-    try {
-        const { id } = idParamSchema.parse(req.params)
-        const supplier = await SupplierService.getSupplierById(id)
-        if (!supplier) return reply.status(404).send({ success: false, message: 'Fornecedor não encontrado.' })
-        await SupplierService.deleteSupplier(id)
-        return reply.status(200).send({ success: true, message: 'Fornecedor deletado com sucesso.' })
-    } catch (error) { return handleError(reply, error) }
-}
+export const suppliersController = {
+    list: async (request: FastifyRequest) => {
+        const query = parse(suppliersListSchema, request.query);
+        const result = await suppliersService.list({ ...query, skip: getSkip(query), take: query.limit });
+        return paginate(result.data, result.total, query);
+    },
+    create: async (request: FastifyRequest, reply: FastifyReply) =>
+        reply.status(201).send(await suppliersService.create(parse(supplierSchema, request.body), request.user.sub)),
+    update: (request: FastifyRequest) =>
+        suppliersService.update(
+            parse(supplierParamsSchema, request.params).id,
+            parse(supplierSchema.partial(), request.body),
+        ),
+    archive: async (request: FastifyRequest, reply: FastifyReply) => {
+        await suppliersService.archive(parse(supplierParamsSchema, request.params).id);
+        return reply.status(204).send();
+    },
+    permanentDelete: async (request: FastifyRequest, reply: FastifyReply) => {
+        await suppliersService.permanentDelete(parse(supplierParamsSchema, request.params).id);
+        return reply.status(204).send();
+    },
+};

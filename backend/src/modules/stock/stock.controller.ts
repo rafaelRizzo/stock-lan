@@ -1,0 +1,107 @@
+import type { FastifyReply, FastifyRequest } from "fastify";
+import { invalidate, invalidatePrefix } from "../../lib/cache.js";
+import { parse } from "../../lib/errors.js";
+import { getSkip, paginate, paginationSchema } from "../../lib/pagination.js";
+import {
+    stockAdjustmentSchema,
+    stockBatchListSchema,
+    stockBatchParamsSchema,
+    stockBatchSchema,
+    stockBatchUpdateSchema,
+    stockProductParamsSchema,
+} from "./stock.schemas.js";
+import { stockService } from "./stock.service.js";
+
+export const stockController = {
+    createBatch: async (request: FastifyRequest, reply: FastifyReply) => {
+        const input = parse(stockBatchSchema, request.body);
+        if (input.notifyLimit && !input.quantityNotify)
+            throw new Error("quantityNotify is required when notifyLimit is true");
+        const batch = await stockService.createBatch(input, request.user.sub);
+        await invalidate(`stock:product:${batch.productId}`, "dashboard");
+        await invalidatePrefix("catalog:product:");
+        await invalidatePrefix("stock:alerts:");
+        await invalidatePrefix("stock:movements:");
+        await invalidatePrefix("reports:");
+        return reply.status(201).send(batch);
+    },
+
+    updateBatch: async (request: FastifyRequest) => {
+        const id = parse(stockBatchParamsSchema, request.params).id;
+        const input = parse(stockBatchUpdateSchema, request.body);
+        if (input.notifyLimit && !input.quantityNotify)
+            throw new Error("quantityNotify is required when notifyLimit is true");
+        const { batch, previousProductId } = await stockService.updateBatch(id, input);
+        await invalidate(
+            `stock:batch:${id}`,
+            `stock:product:${previousProductId}`,
+            `stock:product:${batch.productId}`,
+            "dashboard",
+        );
+        await invalidatePrefix("stock:batches:");
+        await invalidatePrefix("catalog:product:");
+        await invalidatePrefix("stock:alerts:");
+        await invalidatePrefix("stock:movements:");
+        await invalidatePrefix("reports:");
+        return batch;
+    },
+
+    deleteBatch: async (request: FastifyRequest, reply: FastifyReply) => {
+        const batch = await stockService.deleteBatch(parse(stockBatchParamsSchema, request.params).id);
+        await invalidate(`stock:batch:${batch.id}`, `stock:product:${batch.productId}`, "dashboard");
+        await invalidatePrefix("stock:batches:");
+        await invalidatePrefix("catalog:product:");
+        await invalidatePrefix("stock:alerts:");
+        await invalidatePrefix("stock:movements:");
+        await invalidatePrefix("reports:");
+        return reply.status(204).send();
+    },
+
+    getProductStock: (request: FastifyRequest) =>
+        stockService.getProductStock(parse(stockProductParamsSchema, request.params).productId),
+
+    adjust: async (request: FastifyRequest) => {
+        const input = parse(stockAdjustmentSchema, request.body);
+        const batch = await stockService.adjustBatch(input.stockBatchId, input.quantity, input.obs, request.user.sub);
+        await invalidate(`stock:product:${batch.productId}`, `stock:batch:${batch.id}`, "dashboard");
+        await invalidatePrefix("catalog:product:");
+        await invalidatePrefix("stock:alerts:");
+        await invalidatePrefix("stock:movements:");
+        await invalidatePrefix("reports:");
+        return batch;
+    },
+
+    getBatch: (request: FastifyRequest) => stockService.getBatch(parse(stockBatchParamsSchema, request.params).id),
+
+    listBatches: async (request: FastifyRequest) => {
+        const query = parse(stockBatchListSchema, request.query);
+        const result = await stockService.listBatches(
+            {
+                ...(query.status ? { status: query.status } : {}),
+                ...(query.search
+                    ? {
+                          OR: [
+                              { product: { name: { contains: query.search, mode: "insensitive" } } },
+                              { supplier: { name: { contains: query.search, mode: "insensitive" } } },
+                          ],
+                      }
+                    : {}),
+            },
+            getSkip(query),
+            query.limit,
+        );
+        return paginate(result.data, result.total, query);
+    },
+
+    listAlerts: async (request: FastifyRequest) => {
+        const page = parse(paginationSchema, request.query);
+        const result = await stockService.listAlerts(getSkip(page), page.limit);
+        return paginate(result.data, result.total, page);
+    },
+
+    listMovements: async (request: FastifyRequest) => {
+        const page = parse(paginationSchema, request.query);
+        const result = await stockService.listMovements(getSkip(page), page.limit);
+        return paginate(result.data, result.total, page);
+    },
+};
