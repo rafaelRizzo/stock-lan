@@ -18,4 +18,8 @@ export const usersController = {
         await usersService.archive(parse(userParamsSchema, request.params).id, request.user.sub);
         return reply.status(204).send();
     },
+    restore: async (request: FastifyRequest, reply: FastifyReply) => {
+        await usersService.restore(parse(userParamsSchema, request.params).id);
+        return reply.status(204).send();
+    },
 };

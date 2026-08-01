@@ -43,6 +43,7 @@ export const catalogResources = [
             name: z.string().trim().min(1).max(160),
             recurrence: z.enum(["ONE_TIME", "WEEKLY", "MONTHLY", "YEARLY"]),
             defaultValue: z.coerce.number().positive(),
+            anchorDate: z.coerce.date().optional(),
             obs: z.string().trim().max(2000).optional(),
             status: entityStatusSchema.optional(),
         }),

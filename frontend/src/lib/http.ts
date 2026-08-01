@@ -63,6 +63,33 @@ const fallbackApiErrorMessages: Record<number, string> = {
   409: "Não foi possível concluir a ação devido a um conflito.",
 }
 
+const dynamicApiErrorMessages: Array<[RegExp, (match: RegExpMatchArray) => string]> =
+  [
+    [
+      /^Insufficient stock for (.+)$/,
+      (match) => `Estoque insuficiente para ${match[1]}.`,
+    ],
+  ]
+
+let refreshPromise: Promise<AuthSession> | null = null
+
+function refreshSession() {
+  if (!refreshPromise) {
+    refreshPromise = axios
+      .post<AuthSession>(`${API_URL}/auth/refresh`, {
+        refreshToken: getRefreshToken(),
+      })
+      .then(({ data }) => {
+        saveSession(data)
+        return data
+      })
+      .finally(() => {
+        refreshPromise = null
+      })
+  }
+  return refreshPromise
+}
+
 http.interceptors.request.use((config) => {
   const accessToken = getAccessToken()
 
@@ -99,12 +126,7 @@ http.interceptors.response.use(
     request._retry = true
 
     try {
-      const { data } = await axios.post<AuthSession>(
-        `${API_URL}/auth/refresh`,
-        { refreshToken }
-      )
-
-      saveSession(data)
+      const data = await refreshSession()
       request.headers.set("Authorization", `Bearer ${data.accessToken}`)
       return http(request)
     } catch {
@@ -120,8 +142,17 @@ export function getApiErrorMessage(error: unknown) {
     const message = error.response?.data?.message
     const status = error.response?.status
 
+    if (message) {
+      const exact = apiErrorMessages[message]
+      if (exact) return exact
+
+      for (const [pattern, format] of dynamicApiErrorMessages) {
+        const match = message.match(pattern)
+        if (match) return format(match)
+      }
+    }
+
     return (
-      (message && apiErrorMessages[message]) ||
       (status && fallbackApiErrorMessages[status]) ||
       "Não foi possível concluir a solicitação."
     )

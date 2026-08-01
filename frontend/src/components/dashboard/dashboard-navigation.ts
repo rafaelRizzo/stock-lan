@@ -8,10 +8,10 @@ import {
   LayoutDashboard,
   PackagePlus,
   PackageSearch,
-  Settings2,
   ShoppingCart,
   SlidersHorizontal,
   Truck,
+  UserCog,
   UsersRound,
   WalletCards,
 } from "lucide-react"
@@ -85,7 +85,7 @@ export const navigationGroups: NavigationGroup[] = [
       {
         label: "Usuários",
         to: "/dashboard/users",
-        icon: Settings2,
+        icon: UserCog,
         roles: ["ADMIN"],
       },
       {

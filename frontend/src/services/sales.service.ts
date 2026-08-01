@@ -41,6 +41,12 @@ export type CreateSaleInput = {
   items: { productId: string; quantity: number; priceUnit?: number }[]
 }
 
+export type SalePaymentInput = {
+  amount: number
+  method: PaymentMethod
+  obs?: string
+}
+
 export const salesService = {
   async list(params: SalesParams) {
     const { data } = await http.get<PaginatedSales>("/sales", { params })
@@ -56,5 +62,9 @@ export const salesService = {
   },
   async delete(id: string) {
     await http.delete(`/sales/${id}`)
+  },
+  async addPayment(id: string, input: SalePaymentInput) {
+    const { data } = await http.post(`/sales/${id}/payments`, input)
+    return data
   },
 }

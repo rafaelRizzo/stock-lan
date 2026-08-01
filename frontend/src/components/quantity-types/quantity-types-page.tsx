@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react"
 import {
   Archive,
+  ArchiveRestore,
   ChevronLeft,
   ChevronRight,
   LoaderCircle,
@@ -43,6 +44,7 @@ import {
   useCreateQuantityType,
   useDeleteQuantityType,
   useQuantityTypes,
+  useRestoreQuantityType,
   useUpdateQuantityType,
 } from "@/hooks/quantity-types/use-quantity-types"
 import { getApiErrorMessage } from "@/lib/http"
@@ -74,6 +76,7 @@ export function QuantityTypesPage() {
     includeArchived: !status,
   })
   const archive = useArchiveQuantityType()
+  const restore = useRestoreQuantityType()
   const remove = useDeleteQuantityType()
   const { data: user } = useCurrentUser()
   const canCreate = user?.role === "ADMIN" || user?.role === "MANAGER"
@@ -106,7 +109,7 @@ export function QuantityTypesPage() {
           <div className="relative w-full sm:w-[28rem]">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-10 rounded-xl bg-muted/40 pl-9 shadow-none"
+              className="h-10 rounded-xl pl-9 shadow-none"
               onChange={(event) => {
                 setSearch(event.target.value)
                 setPage(1)
@@ -143,6 +146,8 @@ export function QuantityTypesPage() {
                   onArchive={setTarget}
                   onDelete={setDeleteTarget}
                   onEdit={setEditTarget}
+                  onRestore={(item) => restore.mutate(item.id)}
+                  restoring={restore.isPending}
                   type={type}
                 />
               ))}
@@ -243,6 +248,8 @@ function TypeRow({
   onArchive,
   onDelete,
   onEdit,
+  onRestore,
+  restoring,
   type,
 }: {
   canArchive: boolean
@@ -250,6 +257,8 @@ function TypeRow({
   onArchive: (type: QuantityType) => void
   onDelete: (type: QuantityType) => void
   onEdit: (type: QuantityType) => void
+  onRestore: (type: QuantityType) => void
+  restoring: boolean
   type: QuantityType
 }) {
   return (
@@ -282,11 +291,22 @@ function TypeRow({
             <Pencil className="size-4" />
           </Button>
         )}
-        {canArchive && (
+        {canArchive && type.status === "ARCHIVED" && (
+          <Button
+            aria-label={`Restaurar ${type.name}`}
+            className="text-muted-foreground hover:text-foreground"
+            disabled={restoring}
+            onClick={() => onRestore(type)}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <ArchiveRestore className="size-4" />
+          </Button>
+        )}
+        {canArchive && type.status !== "ARCHIVED" && (
           <Button
             aria-label={`Arquivar ${type.name}`}
             className="text-muted-foreground hover:text-destructive"
-            disabled={type.status === "ARCHIVED"}
             onClick={() => onArchive(type)}
             size="icon-sm"
             variant="ghost"

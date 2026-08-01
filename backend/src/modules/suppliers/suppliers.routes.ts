@@ -49,4 +49,12 @@ export async function registerSuppliersRoutes(
         },
         suppliersController.archive,
     );
+    app.patch(
+        "/suppliers/:id/restore",
+        {
+            preHandler: requireRole("ADMIN"),
+            schema: { tags: ["suppliers"] },
+        },
+        suppliersController.restore,
+    );
 }

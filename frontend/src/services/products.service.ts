@@ -47,6 +47,9 @@ export const productsService = {
   async archive(id: string) {
     await http.delete(`/products/${id}`)
   },
+  async restore(id: string) {
+    await http.patch(`/products/${id}/restore`)
+  },
   async delete(id: string) {
     await http.delete(`/products/${id}/permanent`)
   },

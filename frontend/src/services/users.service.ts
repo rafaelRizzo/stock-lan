@@ -49,4 +49,7 @@ export const usersService = {
   async archive(id: string) {
     await http.delete(`/users/${id}`)
   },
+  async restore(id: string) {
+    await http.patch(`/users/${id}/restore`)
+  },
 }

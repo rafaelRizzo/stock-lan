@@ -55,4 +55,9 @@ export const usersService = {
         if (!user) throw new AppError(404, "User not found");
         await prisma.user.update({ where: { id }, data: { status: "ARCHIVED" } });
     },
+    restore: async (id: string) => {
+        const user = await prisma.user.findUnique({ where: { id } });
+        if (!user) throw new AppError(404, "User not found");
+        await prisma.user.update({ where: { id }, data: { status: "ACTIVE" } });
+    },
 };

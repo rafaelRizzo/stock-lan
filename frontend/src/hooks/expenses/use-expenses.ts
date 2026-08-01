@@ -23,6 +23,7 @@ function useExpenseMutation<T>(
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] })
       queryClient.invalidateQueries({ queryKey: ["dashboard"] })
+      queryClient.invalidateQueries({ queryKey: ["notifications"] })
       notify.success(message)
     },
   })

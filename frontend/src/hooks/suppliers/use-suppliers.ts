@@ -49,6 +49,17 @@ export function useArchiveSupplier() {
   })
 }
 
+export function useRestoreSupplier() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => suppliersService.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] })
+      notify.success("Fornecedor restaurado com sucesso.")
+    },
+  })
+}
+
 export function useDeleteSupplier() {
   const queryClient = useQueryClient()
   return useMutation({

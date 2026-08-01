@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   expenseTemplatesService,
   type ExpenseTemplateInput,
+  type ExpenseTemplatesParams,
 } from "@/services/expense-templates.service"
 import { notify } from "@/lib/toast"
 
@@ -12,15 +13,16 @@ export function useExpenseTemplates() {
   })
 }
 
-export function useAllExpenseTemplates() {
+export function useAllExpenseTemplates(
+  params: ExpenseTemplatesParams = {
+    page: 1,
+    limit: 100,
+    includeArchived: true,
+  }
+) {
   return useQuery({
-    queryKey: ["expense-templates", "all"],
-    queryFn: () =>
-      expenseTemplatesService.list({
-        page: 1,
-        limit: 100,
-        includeArchived: true,
-      }),
+    queryKey: ["expense-templates", "all", params],
+    queryFn: () => expenseTemplatesService.list(params),
   })
 }
 
@@ -54,6 +56,12 @@ export function useArchiveExpenseTemplate() {
   return useTemplateMutation(
     (id: string) => expenseTemplatesService.archive(id),
     "Modelo de despesa arquivado com sucesso."
+  )
+}
+export function useRestoreExpenseTemplate() {
+  return useTemplateMutation(
+    (id: string) => expenseTemplatesService.restore(id),
+    "Modelo de despesa restaurado com sucesso."
   )
 }
 export function useDeleteExpenseTemplate() {

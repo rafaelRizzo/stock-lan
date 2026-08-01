@@ -1,12 +1,15 @@
-import { Link, useLocation } from "@tanstack/react-router"
+import { useState } from "react"
+import { Link, useLocation, useNavigate } from "@tanstack/react-router"
 import {
   ArrowUpRight,
   Bell,
   Box,
+  Check,
   CircleDollarSign,
   HandCoins,
   PackageCheck,
   ReceiptText,
+  Trash2,
   TrendingUp,
 } from "lucide-react"
 
@@ -15,7 +18,9 @@ import { pageTitles } from "@/components/dashboard/dashboard-navigation"
 import { ProductsPage } from "@/components/products/products-page"
 import { QuantityTypesPage } from "@/components/quantity-types/quantity-types-page"
 import { ReportsPage } from "@/components/reports/reports-page"
+import { DebtReportsPage } from "@/components/reports/debt-reports-page"
 import { SuppliersPage } from "@/components/suppliers/suppliers-page"
+import { ExpenseTemplatesPage } from "@/components/expenses/expense-templates-page"
 import { DebtorsPage } from "@/components/debtors/debtors-page"
 import { ExpensesPage } from "@/components/expenses/expenses-page"
 import { SalesPage } from "@/components/sales/sales-page"
@@ -25,12 +30,24 @@ import { StockAlertsPage } from "@/components/stock/stock-alerts-page"
 import { UsersPage } from "@/components/users/users-page"
 import { Button } from "@/components/ui/button"
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { useCurrentUser } from "@/hooks/auth/use-current-user"
 import { useDashboardSummary } from "@/hooks/reports/use-dashboard-summary"
+import {
+  useDeleteNotification,
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+  useNotifications,
+  useUnreadNotificationCount,
+} from "@/hooks/notifications/use-notifications"
 import { useStockAlerts } from "@/hooks/stock/use-stock-batches"
 import type { DashboardSummary } from "@/services/reports.service"
 
@@ -43,7 +60,7 @@ export function DashboardScreen() {
   return (
     <SidebarProvider>
       <AppSidebar user={user} />
-      <SidebarInset className="min-h-svh overflow-hidden bg-[#f7f8f6] dark:bg-background print:m-0! print:rounded-none! print:bg-background">
+      <SidebarInset className="min-h-svh overflow-hidden bg-[#f7f8f6] dark:bg-background print:m-0! print:h-auto! print:overflow-visible! print:rounded-none! print:bg-background">
         <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#e5e9e4] bg-background/80 px-4 backdrop-blur-sm sm:px-6 dark:border-border print:hidden">
           <div className="flex min-w-0 items-center gap-3">
             <SidebarTrigger className="md:hidden" />
@@ -57,14 +74,7 @@ export function DashboardScreen() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              aria-label="Notificações"
-              className="rounded-xl"
-              size="icon-sm"
-              variant="ghost"
-            >
-              <Bell className="size-4" />
-            </Button>
+            <NotificationsMenu />
             <Link
               className="hidden h-8 items-center gap-1.5 rounded-xl border border-border bg-background px-3 text-sm font-medium hover:bg-muted sm:flex"
               params={{ _splat: "sales" }}
@@ -75,7 +85,7 @@ export function DashboardScreen() {
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col overflow-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8 print:p-0">
+        <div className="flex flex-1 flex-col overflow-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8 print:h-auto! print:overflow-visible! print:p-0">
           {isOverview ? (
             <DashboardOverview userName={user?.name} />
           ) : pathname === "/dashboard/users" ? (
@@ -100,12 +110,151 @@ export function DashboardScreen() {
             <ExpensesPage />
           ) : pathname === "/dashboard/reports" ? (
             <ReportsPage />
+          ) : pathname === "/dashboard/reports/debts" ? (
+            <DebtReportsPage />
+          ) : pathname === "/dashboard/expense-templates" ? (
+            <ExpenseTemplatesPage />
           ) : (
             <ModulePlaceholder title={title} />
           )}
         </div>
       </SidebarInset>
     </SidebarProvider>
+  )
+}
+
+const notificationEntityRoutes: Record<string, string> = {
+  expense: "expenses",
+}
+
+function NotificationsMenu() {
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const { data: unreadCount } = useUnreadNotificationCount()
+  const notifications = useNotifications({ page: 1, limit: 10 })
+  const markRead = useMarkNotificationRead()
+  const markAllRead = useMarkAllNotificationsRead()
+  const deleteNotification = useDeleteNotification()
+  const count = unreadCount ?? 0
+
+  function handleNotificationClick(notification: {
+    id: string
+    read: boolean
+    entityType: string
+  }) {
+    if (!notification.read) markRead.mutate(notification.id)
+    setOpen(false)
+    const target = notificationEntityRoutes[notification.entityType]
+    if (target) navigate({ to: "/dashboard/$", params: { _splat: target } })
+  }
+
+  return (
+    <Popover onOpenChange={setOpen} open={open}>
+      <PopoverTrigger
+        render={
+          <Button
+            aria-label="Notificações"
+            className="relative rounded-xl"
+            size="icon-sm"
+            variant="ghost"
+          />
+        }
+      >
+        <Bell className="size-4" />
+        {count > 0 && (
+          <span className="absolute -top-1 -right-1 grid size-4 place-items-center rounded-full bg-red-500 text-[10px] font-semibold text-white">
+            {count > 9 ? "9+" : count}
+          </span>
+        )}
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0">
+        <div className="flex items-center justify-between border-b border-[#e5e9e4] px-4 py-3 dark:border-border">
+          <p className="text-sm font-semibold">Notificações</p>
+          {count > 0 && (
+            <Button
+              className="h-7 rounded-lg px-2 text-xs"
+              disabled={markAllRead.isPending}
+              onClick={() => markAllRead.mutate()}
+              size="sm"
+              variant="ghost"
+            >
+              Marcar todas como lidas
+            </Button>
+          )}
+        </div>
+        <div className="max-h-80 overflow-y-auto">
+          {notifications.isLoading && (
+            <p className="p-4 text-sm text-muted-foreground">Carregando...</p>
+          )}
+          {!notifications.isLoading &&
+            notifications.data?.data.length === 0 && (
+              <p className="p-4 text-sm text-muted-foreground">
+                Nenhuma notificação por aqui.
+              </p>
+            )}
+          {notifications.data?.data.map((notification) => (
+            <div
+              className={`flex items-start gap-1 border-b border-[#e5e9e4] pl-4 last:border-b-0 hover:bg-muted/50 dark:border-border ${
+                notification.read ? "" : "bg-[#f2f7f3] dark:bg-emerald-950/20"
+              }`}
+              key={notification.id}
+            >
+              <button
+                className="min-w-0 flex-1 py-3 text-left"
+                onClick={() => handleNotificationClick(notification)}
+                type="button"
+              >
+                <p className="flex items-center gap-2 text-sm font-medium">
+                  {!notification.read && (
+                    <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                  )}
+                  {notification.title}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {notification.message}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {new Intl.DateTimeFormat("pt-BR", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  }).format(new Date(notification.createdAt))}
+                </p>
+              </button>
+              <div className="flex shrink-0 items-center gap-0.5 py-3 pr-2">
+                {!notification.read && (
+                  <Button
+                    aria-label="Marcar como lida"
+                    className="text-muted-foreground hover:text-foreground"
+                    disabled={markRead.isPending}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      markRead.mutate(notification.id)
+                    }}
+                    size="icon-sm"
+                    variant="ghost"
+                  >
+                    <Check className="size-4" />
+                  </Button>
+                )}
+                <Button
+                  aria-label="Excluir notificação"
+                  className="text-muted-foreground hover:text-destructive"
+                  disabled={deleteNotification.isPending}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    deleteNotification.mutate(notification.id)
+                  }}
+                  size="icon-sm"
+                  variant="ghost"
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -229,6 +378,11 @@ function DashboardOverview({ userName }: { userName?: string }) {
   )
 }
 
+const cashFlowColors = {
+  income: "bg-[#1baf7a] dark:bg-[#199e70]",
+  expense: "bg-[#e34948] dark:bg-[#e66767]",
+}
+
 function CashFlowChart({
   data,
   loading,
@@ -236,6 +390,7 @@ function CashFlowChart({
   data?: DashboardSummary
   loading: boolean
 }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const points = data?.cashFlow ?? []
   const max = Math.max(
     1,
@@ -243,13 +398,15 @@ function CashFlowChart({
   )
 
   return (
-    <div className="mt-8 rounded-xl bg-[linear-gradient(135deg,rgba(76,146,116,0.13),rgba(76,146,116,0.02))] px-3 pt-3 pb-2">
+    <div className="mt-8 rounded-xl px-3 pt-3 pb-2">
       <div className="mb-3 flex items-center gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <i className="size-2 rounded-sm bg-[#4c9274]" /> Entradas
+          <i className={`size-2 rounded-sm ${cashFlowColors.income}`} />{" "}
+          Entradas
         </span>
         <span className="flex items-center gap-1.5">
-          <i className="size-2 rounded-sm bg-[#d46a78]" /> Saídas
+          <i className={`size-2 rounded-sm ${cashFlowColors.expense}`} />{" "}
+          Saídas
         </span>
       </div>
       <div className="flex h-28 items-end gap-1.5">
@@ -260,32 +417,74 @@ function CashFlowChart({
                 key={index}
               />
             ))
-          : points.map((point) => (
-              <div
-                className="flex h-full min-w-0 flex-1 flex-col justify-end"
-                key={point.date}
-              >
-                <div className="flex h-full items-end justify-center gap-0.5">
-                  <span
-                    aria-label={`Entradas: ${formatCurrency(point.income)}`}
-                    className="w-full max-w-3 rounded-t-sm bg-[#4c9274]"
-                    style={{ height: `${(Number(point.income) / max) * 100}%` }}
-                    title={`Entradas: ${formatCurrency(point.income)}`}
-                  />
-                  <span
-                    aria-label={`Saídas: ${formatCurrency(point.expense)}`}
-                    className="w-full max-w-3 rounded-t-sm bg-[#d46a78]"
-                    style={{
-                      height: `${(Number(point.expense) / max) * 100}%`,
-                    }}
-                    title={`Saídas: ${formatCurrency(point.expense)}`}
-                  />
+          : points.map((point, index) => {
+              const active = activeIndex === index
+              return (
+                <div
+                  aria-label={`${formatChartDate(point.date)}: entradas ${formatCurrency(point.income)}, saídas ${formatCurrency(point.expense)}`}
+                  className="relative flex h-full min-w-0 flex-1 flex-col justify-end outline-none"
+                  key={point.date}
+                  onBlur={() => setActiveIndex(null)}
+                  onFocus={() => setActiveIndex(index)}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onMouseLeave={() => setActiveIndex(null)}
+                  role="img"
+                  tabIndex={0}
+                >
+                  {active && (
+                    <div
+                      className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-max -translate-x-1/2 rounded-lg bg-popover px-3 py-2 text-xs shadow-lg ring-1 ring-foreground/5 dark:ring-foreground/10"
+                      role="tooltip"
+                    >
+                      <p className="font-medium text-popover-foreground">
+                        {formatChartDate(point.date)}
+                      </p>
+                      <p className="mt-1.5 flex items-center justify-between gap-3">
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          <i
+                            className={`h-0.5 w-2.5 rounded-full ${cashFlowColors.income}`}
+                          />
+                          Entradas
+                        </span>
+                        <span className="font-semibold text-popover-foreground">
+                          {formatCurrency(point.income)}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 flex items-center justify-between gap-3">
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          <i
+                            className={`h-0.5 w-2.5 rounded-full ${cashFlowColors.expense}`}
+                          />
+                          Saídas
+                        </span>
+                        <span className="font-semibold text-popover-foreground">
+                          {formatCurrency(point.expense)}
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex h-full items-end justify-center gap-0.5">
+                    <span
+                      className={`w-full max-w-3 rounded-t ${cashFlowColors.income}`}
+                      style={{
+                        height: `${(Number(point.income) / max) * 100}%`,
+                        filter: active ? "brightness(1.15)" : undefined,
+                      }}
+                    />
+                    <span
+                      className={`w-full max-w-3 rounded-t ${cashFlowColors.expense}`}
+                      style={{
+                        height: `${(Number(point.expense) / max) * 100}%`,
+                        filter: active ? "brightness(1.15)" : undefined,
+                      }}
+                    />
+                  </div>
+                  <span className="mt-2 text-center text-[10px] text-muted-foreground">
+                    {point.date.slice(8)}
+                  </span>
                 </div>
-                <span className="mt-2 text-center text-[10px] text-muted-foreground">
-                  {point.date.slice(8)}
-                </span>
-              </div>
-            ))}
+              )
+            })}
       </div>
     </div>
   )
@@ -382,4 +581,11 @@ function formatCurrency(
     style: "currency",
     currency: "BRL",
   }).format(Number.isFinite(amount) ? amount : 0)
+}
+
+function formatChartDate(date: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  }).format(new Date(`${date}T12:00:00`))
 }

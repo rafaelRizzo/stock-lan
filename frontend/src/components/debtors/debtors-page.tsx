@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react"
 import {
   Archive,
+  ArchiveRestore,
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
@@ -43,6 +44,7 @@ import {
   useCreateDebtor,
   useDeleteDebtor,
   useDebtors,
+  useRestoreDebtor,
   useUpdateDebtor,
 } from "@/hooks/debtors/use-debtors"
 import { getApiErrorMessage } from "@/lib/http"
@@ -76,6 +78,7 @@ export function DebtorsPage() {
     includeArchived: !status,
   })
   const archive = useArchiveDebtor()
+  const restore = useRestoreDebtor()
   const remove = useDeleteDebtor()
   const { data: user } = useCurrentUser()
   const canEdit = user?.role === "ADMIN" || user?.role === "MANAGER"
@@ -138,6 +141,8 @@ export function DebtorsPage() {
                   onArchive={setArchiveTarget}
                   onDelete={setDeleteTarget}
                   onEdit={setEditTarget}
+                  onRestore={(item) => restore.mutate(item.id)}
+                  restoring={restore.isPending}
                 />
               ))}
             {!debtors.isLoading && debtors.data?.data.length === 0 && (
@@ -196,7 +201,7 @@ function Filters({
       <div className="relative w-full sm:w-[28rem]">
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          className="h-10 rounded-xl bg-muted/40 pl-9 shadow-none"
+          className="h-10 rounded-xl pl-9 shadow-none"
           onChange={(event) => onSearch(event.target.value)}
           placeholder="Buscar devedor"
           value={search}
@@ -228,6 +233,8 @@ function DebtorRow({
   onArchive,
   onDelete,
   onEdit,
+  onRestore,
+  restoring,
 }: {
   canArchive: boolean
   canEdit: boolean
@@ -235,6 +242,8 @@ function DebtorRow({
   onArchive: (debtor: Debtor) => void
   onDelete: (debtor: Debtor) => void
   onEdit: (debtor: Debtor) => void
+  onRestore: (debtor: Debtor) => void
+  restoring: boolean
 }) {
   return (
     <TableRow>
@@ -276,11 +285,22 @@ function DebtorRow({
             <Pencil className="size-4" />
           </Button>
         )}
-        {canArchive && (
+        {canArchive && debtor.status === "ARCHIVED" && (
+          <Button
+            aria-label={`Restaurar ${debtor.name}`}
+            className="text-muted-foreground hover:text-foreground"
+            disabled={restoring}
+            onClick={() => onRestore(debtor)}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <ArchiveRestore className="size-4" />
+          </Button>
+        )}
+        {canArchive && debtor.status !== "ARCHIVED" && (
           <Button
             aria-label={`Arquivar ${debtor.name}`}
             className="text-muted-foreground hover:text-destructive"
-            disabled={debtor.status === "ARCHIVED"}
             onClick={() => onArchive(debtor)}
             size="icon-sm"
             variant="ghost"

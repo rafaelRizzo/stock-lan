@@ -43,6 +43,11 @@ export const suppliersService = {
         if (!supplier) throw new AppError(404, "Supplier not found");
         await prisma.supplier.update({ where: { id }, data: { status: "ARCHIVED" } });
     },
+    restore: async (id: string) => {
+        const supplier = await prisma.supplier.findUnique({ where: { id } });
+        if (!supplier) throw new AppError(404, "Supplier not found");
+        await prisma.supplier.update({ where: { id }, data: { status: "ACTIVE" } });
+    },
     permanentDelete: async (id: string) => {
         try {
             await prisma.supplier.delete({ where: { id } });

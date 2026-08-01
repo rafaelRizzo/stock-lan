@@ -21,6 +21,10 @@ export const suppliersController = {
         await suppliersService.archive(parse(supplierParamsSchema, request.params).id);
         return reply.status(204).send();
     },
+    restore: async (request: FastifyRequest, reply: FastifyReply) => {
+        await suppliersService.restore(parse(supplierParamsSchema, request.params).id);
+        return reply.status(204).send();
+    },
     permanentDelete: async (request: FastifyRequest, reply: FastifyReply) => {
         await suppliersService.permanentDelete(parse(supplierParamsSchema, request.params).id);
         return reply.status(204).send();

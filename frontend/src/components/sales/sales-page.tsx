@@ -111,7 +111,7 @@ export function SalesPage() {
           <div className="relative w-full sm:w-[28rem]">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-10 rounded-xl bg-muted/40 pl-9 shadow-none"
+              className="h-10 rounded-xl pl-9 shadow-none"
               placeholder="Buscar por cliente"
               value={search}
               onChange={(event) => {
@@ -476,77 +476,94 @@ function SaleDialog({
               </Button>
             </div>
             <div className="space-y-3">
-              {items.map((item, index) => (
-                <div
-                  className="grid gap-2 sm:grid-cols-[1fr_100px_130px_32px]"
-                  key={index}
-                >
-                  <Select
-                    value={item.productId}
-                    onValueChange={(value) =>
-                      updateItem(index, { productId: value ?? "" })
-                    }
+              <div className="hidden gap-2 px-0.5 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[1fr_100px_130px_32px]">
+                <span>Produto</span>
+                <span>Quantidade</span>
+                <span>Preço unitário</span>
+                <span />
+              </div>
+              {items.map((item, index) => {
+                const selectedProduct = products.data?.data.find(
+                  (product) => product.id === item.productId
+                )
+                return (
+                  <div
+                    className="grid gap-2 sm:grid-cols-[1fr_100px_130px_32px]"
+                    key={index}
                   >
-                    <SelectTrigger className={selectClass}>
-                      <span>
-                        {products.data?.data.find(
-                          (product) => product.id === item.productId
-                        )?.name || "Produto"}
-                      </span>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.data?.data.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    className="h-10 rounded-xl"
-                    inputMode="decimal"
-                    placeholder="Qtd."
-                    value={item.quantity}
-                    onChange={(event) =>
-                      updateItem(index, {
-                        quantity: event.target.value
-                          .replace(/[^0-9,]/g, "")
-                          .replace(/(,.*),/g, "$1"),
-                      })
-                    }
-                  />
-                  <Input
-                    className="h-10 rounded-xl"
-                    inputMode="decimal"
-                    placeholder="Preço opc."
-                    value={item.priceUnit}
-                    onChange={(event) =>
-                      updateItem(index, {
-                        priceUnit: event.target.value
-                          .replace(/[^0-9,]/g, "")
-                          .replace(/(,.*),/g, "$1"),
-                      })
-                    }
-                  />
-                  <Button
-                    aria-label="Remover item"
-                    className="self-center"
-                    disabled={items.length === 1}
-                    onClick={() =>
-                      setItems((current) =>
-                        current.filter(
-                          (_, currentIndex) => currentIndex !== index
+                    <Select
+                      value={item.productId}
+                      onValueChange={(value) => {
+                        const product = products.data?.data.find(
+                          (candidate) => candidate.id === value
                         )
-                      )
-                    }
-                    size="icon-sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <Minus className="size-4" />
-                  </Button>
-                </div>
-              ))}
+                        updateItem(index, {
+                          productId: value ?? "",
+                          priceUnit: product
+                            ? String(product.priceSell).replace(".", ",")
+                            : item.priceUnit,
+                        })
+                      }}
+                    >
+                      <SelectTrigger className={selectClass}>
+                        <span>{selectedProduct?.name || "Selecione o produto"}</span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.data?.data.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      aria-label="Quantidade"
+                      className="h-10 rounded-xl"
+                      inputMode="decimal"
+                      placeholder="Ex.: 2"
+                      value={item.quantity}
+                      onChange={(event) =>
+                        updateItem(index, {
+                          quantity: event.target.value
+                            .replace(/[^0-9,]/g, "")
+                            .replace(/(,.*),/g, "$1"),
+                        })
+                      }
+                    />
+                    <Input
+                      aria-label="Preço unitário"
+                      className="h-10 rounded-xl"
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      value={item.priceUnit}
+                      onChange={(event) =>
+                        updateItem(index, {
+                          priceUnit: event.target.value
+                            .replace(/[^0-9,]/g, "")
+                            .replace(/(,.*),/g, "$1"),
+                        })
+                      }
+                    />
+                    <Button
+                      aria-label="Remover item"
+                      className="self-center"
+                      disabled={items.length === 1}
+                      onClick={() =>
+                        setItems((current) =>
+                          current.filter(
+                            (_, currentIndex) => currentIndex !== index
+                          )
+                        )
+                      }
+                      size="icon-sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <Minus className="size-4" />
+                    </Button>
+                  </div>
+                )
+              })}
             </div>
           </div>
           <Field label="Observação">

@@ -52,3 +52,14 @@ export function useArchiveUser() {
     },
   })
 }
+
+export function useRestoreUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => usersService.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+      notify.success("Usuário restaurado com sucesso.")
+    },
+  })
+}

@@ -35,11 +35,18 @@ export const expensesService = {
     update: async (id: string, input: Partial<ExpenseInput>) => {
         const expense = await prisma.expense.findUnique({ where: { id } });
         if (!expense) throw new AppError(404, "Expense not found");
-        return prisma.expense.update({ where: { id }, data: input });
+        const data: Omit<Partial<ExpenseInput>, "paidAt"> & { paidAt?: Date | null } = { ...input };
+        if (data.status && data.status !== "PAID") data.paidAt = null;
+        const updated = await prisma.expense.update({ where: { id }, data });
+        if (expense.status === "PENDING" && updated.status !== "PENDING") {
+            await prisma.notification.deleteMany({ where: { entityType: "expense", entityId: id } });
+        }
+        return updated;
     },
     delete: async (id: string) => {
         const expense = await prisma.expense.findUnique({ where: { id } });
         if (!expense) throw new AppError(404, "Expense not found");
         await prisma.expense.delete({ where: { id } });
+        await prisma.notification.deleteMany({ where: { entityType: "expense", entityId: id } });
     },
 };

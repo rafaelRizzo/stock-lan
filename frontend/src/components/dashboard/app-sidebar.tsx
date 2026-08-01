@@ -20,6 +20,14 @@ import type { AuthUser } from "@/services/auth.service"
 export function AppSidebar({ user }: { user?: AuthUser }) {
   const { pathname } = useLocation()
   const logout = useLogout()
+  const activeTo = navigationGroups
+    .flatMap((group) => group.items)
+    .filter(
+      (item) =>
+        pathname === item.to ||
+        (item.to !== "/dashboard" && pathname.startsWith(`${item.to}/`))
+    )
+    .sort((a, b) => b.to.length - a.to.length)[0]?.to
   const initials =
     user?.name
       .split(" ")
@@ -61,10 +69,7 @@ export function AppSidebar({ user }: { user?: AuthUser }) {
               </SidebarGroupLabel>
               <SidebarMenu>
                 {items.map((item) => {
-                  const isActive =
-                    pathname === item.to ||
-                    (item.to !== "/dashboard" &&
-                      pathname.startsWith(`${item.to}/`))
+                  const isActive = item.to === activeTo
                   const Icon = item.icon
                   const dashboardPath = item.to.replace("/dashboard/", "")
                   return (

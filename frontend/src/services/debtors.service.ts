@@ -41,6 +41,9 @@ export const debtorsService = {
   async archive(id: string) {
     await http.delete(`/debtors/${id}`)
   },
+  async restore(id: string) {
+    await http.patch(`/debtors/${id}/restore`)
+  },
   async delete(id: string) {
     await http.delete(`/debtors/${id}/permanent`)
   },

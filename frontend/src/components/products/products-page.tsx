@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react"
 import {
   Archive,
+  ArchiveRestore,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -47,6 +48,7 @@ import {
   useCreateProduct,
   useDeleteProduct,
   useProducts,
+  useRestoreProduct,
   useUpdateProduct,
 } from "@/hooks/products/use-products"
 import { useCurrentUser } from "@/hooks/auth/use-current-user"
@@ -78,6 +80,7 @@ export function ProductsPage() {
     stockOrder,
   })
   const archive = useArchiveProduct()
+  const restore = useRestoreProduct()
   const remove = useDeleteProduct()
   const { data: user } = useCurrentUser()
   const canCreate = user?.role === "ADMIN" || user?.role === "MANAGER"
@@ -110,7 +113,7 @@ export function ProductsPage() {
           <div className="relative w-full sm:w-[28rem]">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-10 rounded-xl bg-muted/40 pl-9 shadow-none"
+              className="h-10 rounded-xl pl-9 shadow-none"
               onChange={(event) => {
                 setSearch(event.target.value)
                 setPage(1)
@@ -175,7 +178,9 @@ export function ProductsPage() {
                   onArchive={setTarget}
                   onDelete={setDeleteTarget}
                   onEdit={setEditTarget}
+                  onRestore={(item) => restore.mutate(item.id)}
                   product={product}
+                  restoring={restore.isPending}
                 />
               ))}
             {!products.isLoading && products.data?.data.length === 0 && (
@@ -279,14 +284,18 @@ function ProductRow({
   onArchive,
   onDelete,
   onEdit,
+  onRestore,
   product,
+  restoring,
 }: {
   canArchive: boolean
   canEdit: boolean
   onArchive: (product: Product) => void
   onDelete: (product: Product) => void
   onEdit: (product: Product) => void
+  onRestore: (product: Product) => void
   product: Product
+  restoring: boolean
 }) {
   return (
     <TableRow>
@@ -331,11 +340,22 @@ function ProductRow({
             <Pencil className="size-4" />
           </Button>
         )}
-        {canArchive && (
+        {canArchive && product.status === "ARCHIVED" && (
+          <Button
+            aria-label={`Restaurar ${product.name}`}
+            className="text-muted-foreground hover:text-foreground"
+            disabled={restoring}
+            onClick={() => onRestore(product)}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <ArchiveRestore className="size-4" />
+          </Button>
+        )}
+        {canArchive && product.status !== "ARCHIVED" && (
           <Button
             aria-label={`Arquivar ${product.name}`}
             className="text-muted-foreground hover:text-destructive"
-            disabled={product.status === "ARCHIVED"}
             onClick={() => onArchive(product)}
             size="icon-sm"
             variant="ghost"

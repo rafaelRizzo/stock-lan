@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react"
 import {
   Archive,
+  ArchiveRestore,
   ChevronLeft,
   ChevronRight,
   LoaderCircle,
@@ -40,6 +41,7 @@ import {
 import {
   useArchiveUser,
   useCreateUser,
+  useRestoreUser,
   useUpdateUser,
   useUsers,
 } from "@/hooks/users/use-users"
@@ -67,6 +69,7 @@ export function UsersPage() {
     status: status || undefined,
   })
   const archive = useArchiveUser()
+  const restore = useRestoreUser()
 
   return (
     <div className="mx-auto w-full max-w-7xl">
@@ -95,7 +98,7 @@ export function UsersPage() {
           <div className="relative w-full sm:w-[28rem]">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-10 rounded-xl bg-muted/40 pl-9 shadow-none"
+              className="h-10 rounded-xl pl-9 shadow-none"
               onChange={(event) => {
                 setSearch(event.target.value)
                 setPage(1)
@@ -148,6 +151,8 @@ export function UsersPage() {
                   key={user.id}
                   onArchive={setArchiveTarget}
                   onEdit={setEditTarget}
+                  onRestore={(item) => restore.mutate(item.id)}
+                  restoring={restore.isPending}
                   user={user}
                 />
               ))}
@@ -212,10 +217,14 @@ export function UsersPage() {
 function UserRow({
   onArchive,
   onEdit,
+  onRestore,
+  restoring,
   user,
 }: {
   onArchive: (user: User) => void
   onEdit: (user: User) => void
+  onRestore: (user: User) => void
+  restoring: boolean
   user: User
 }) {
   const initials = user.name
@@ -262,16 +271,28 @@ function UserRow({
         >
           <Pencil className="size-4" />
         </Button>
-        <Button
-          aria-label={`Arquivar ${user.name}`}
-          className="text-muted-foreground hover:text-destructive"
-          disabled={user.status === "ARCHIVED"}
-          onClick={() => onArchive(user)}
-          size="icon-sm"
-          variant="ghost"
-        >
-          <Archive className="size-4" />
-        </Button>
+        {user.status === "ARCHIVED" ? (
+          <Button
+            aria-label={`Restaurar ${user.name}`}
+            className="text-muted-foreground hover:text-foreground"
+            disabled={restoring}
+            onClick={() => onRestore(user)}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <ArchiveRestore className="size-4" />
+          </Button>
+        ) : (
+          <Button
+            aria-label={`Arquivar ${user.name}`}
+            className="text-muted-foreground hover:text-destructive"
+            onClick={() => onArchive(user)}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <Archive className="size-4" />
+          </Button>
+        )}
       </TableCell>
     </TableRow>
   )

@@ -44,6 +44,17 @@ export function useArchiveDebtor() {
   })
 }
 
+export function useRestoreDebtor() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => debtorsService.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["debtors"] })
+      notify.success("Devedor restaurado com sucesso.")
+    },
+  })
+}
+
 export function useDeleteDebtor() {
   const queryClient = useQueryClient()
   return useMutation({

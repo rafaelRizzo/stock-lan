@@ -34,6 +34,7 @@
 | Movimentations | `StockMovement` |
 | Despesas recorrentes | `ExpenseTemplate` |
 | Despesas lançadas | `Expense` |
+| Notificações | `Notification`, `NotificationRead` |
 
 Não usar somente movimentação para registrar vendas. Vendas possuem cabeçalho em `Sale`, itens em `SaleItem`, pagamentos em `Payment` e reflexo imutável em `StockMovement`.
 
@@ -167,8 +168,10 @@ Modelos complementares obrigatórios:
 - `SaleItem`: `saleId`, `productId`, `stockBatchId`, quantidade, preço unitário e total.
 - `StockMovement`: produto, lote, tipo, quantidade, custos, `saleId` opcional e auditoria.
 - `Payment`: `saleId`, valor, data, método e auditoria.
-- `ExpenseTemplate`: nome único, recorrência, valor padrão, status e auditoria.
+- `ExpenseTemplate`: nome único, recorrência, valor padrão, `anchorDate` (data âncora da recorrência) e `nextDueDate` (próxima ocorrência calculada), status e auditoria. `anchorDate` é obrigatório quando `recurrence != ONE_TIME`.
 - `Expense`: template opcional, nome, valor, vencimento, status e auditoria.
+- `Notification`: tipo, título, mensagem, entidade e id referenciados, data de criação. Broadcast (sem dono), visível a quem gerencia o domínio da entidade referenciada.
+- `NotificationRead`: notificação, usuário e data de leitura. Existência do registro = notificação lida por aquele usuário; único por `(notificationId, userId)`.
 - `UserSession`: usuário, hash do token, expiração, revogação e auditoria.
 - `Audit`: usuário, entidade, id da entidade, ação, payload anterior/novo e data.
 
@@ -182,6 +185,10 @@ Modelos complementares obrigatórios:
 - `PENDING` e `DEBT` permitem pagamentos parciais.
 - Estoque disponível: soma de `quantityLeft` por produto.
 - Alerta de estoque: `notifyLimit = true` e `quantityLeft <= quantityNotify`.
+- `Expense.status = PENDING` nunca conta em fluxo de caixa, lucro ou relatórios: somente `PAID` com `paidAt` preenchido é somado. Não debita nada até o usuário dar baixa manualmente.
+- Job diário (`runExpenseRecurrenceJob`) gera automaticamente uma `Expense PENDING` + uma `Notification` para todo `ExpenseTemplate ACTIVE` com `recurrence != ONE_TIME` e `nextDueDate <= hoje`, depois avança `nextDueDate` pra próxima ocorrência.
+- Arquivar um `ExpenseTemplate` recorrente não gera mais despesas (job filtra só `status: ACTIVE`); restaurar recalcula `nextDueDate` a partir da data atual, para não lançar uma despesa retroativa de surpresa.
+- Cálculo de próxima ocorrência (`src/lib/recurrence.ts`) é feito por diferença de calendário a partir da `anchorDate`, com clamp para o último dia do mês/ano quando o dia âncora não existe no período (ex.: dia 31 em fevereiro, 29/02 em ano não bissexto).
 
 ## Paginação
 
@@ -244,9 +251,16 @@ GET    /reports/sales
 GET    /reports/profit
 GET    /reports/expenses
 GET    /reports/debts
+
+GET    /notifications
+GET    /notifications/unread-count
+PATCH  /notifications/:id/read
+PATCH  /notifications/read-all
 ```
 
 Todos os `GET` de coleção implementam o contrato de paginação. `GET /reports/dashboard` não é paginado por ser agregado.
+
+`CRUD` inclui archive (`DELETE /:resource/:id`, seta `status: ARCHIVED`) e restore (`PATCH /:resource/:id/restore`, volta `status: ACTIVE`), além de `DELETE /:resource/:id/permanent` para exclusão definitiva (role `ADMIN`). `/users` não expõe `permanent`.
 
 ## Documentação, CORS e segurança
 
@@ -268,6 +282,12 @@ Todos os `GET` de coleção implementam o contrato de paginação. `GET /reports
 - Cobrir obrigatoriamente: autenticação e refresh, RBAC, CRUD paginado, filtros, venda com múltiplos itens, baixa FIFO, estoque insuficiente, pagamentos parciais, venda a prazo, cancelamento com reversão, alerta de estoque e CORS.
 - Testar erros: payload inválido, usuário sem permissão, recurso inexistente, conflito de unicidade, página ou limite inválidos.
 - CI bloqueia merge abaixo de 100%: `bun run lint`, `bun run typecheck`, `bun test --coverage` e testes de integração.
+
+## Jobs / Cron
+
+- `node-cron` in-process (processo único, sem worker separado): `src/server.ts` roda `runExpenseRecurrenceJob()` uma vez no boot e agenda `*/10 * * * *` (a cada 10 minutos). Cadência curta é viável porque o job é barato (uma query + claim por template vencido) e idempotente.
+- Idempotência via SQL, sem lock externo: cada `ExpenseTemplate` vencido é reivindicado com um `updateMany({ where: { id, nextDueDate: <valor lido> }, data: { nextDueDate: <próximo> } })`. Se `count === 0`, outro processo já avançou esse registro nesse instante e o item é ignorado. O Postgres serializa a linha durante o `UPDATE`, então isso cobre execuções concorrentes ou repetidas no mesmo dia sem precisar de Redis.
+- `runExpenseRecurrenceJob` (`src/jobs/expense-recurrence.job.ts`): busca `ExpenseTemplate` vencidos, reivindica cada um via `updateMany`, cria `Expense` + `Notification` só se a reivindicação for bem-sucedida, invalida `dashboard`, `reports:` e `catalog:expenseTemplate:`.
 
 ## Cache
 
@@ -295,6 +315,15 @@ src/
       sales.routes.ts
       sales.controller.ts
       sales.service.ts
+    notifications/
+      notifications.routes.ts
+      notifications.controller.ts
+      notifications.service.ts
+      notifications.schemas.ts
+  jobs/
+    expense-recurrence.job.ts
+  lib/
+    recurrence.ts
   plugins/
     prisma.ts
     redis.ts

@@ -196,7 +196,7 @@ export function ReportsPage() {
         />
       </section>
 
-      <section className="mt-6 overflow-hidden rounded-2xl border border-[#e5e9e4] bg-background dark:border-border print:break-inside-avoid">
+      <section className="mt-6 overflow-hidden rounded-2xl border border-[#e5e9e4] bg-background dark:border-border print:overflow-visible">
         <div className="flex items-start justify-between gap-4 p-5 sm:p-6">
           <div>
             <h3 className="text-base font-semibold">Fluxo de caixa</h3>
@@ -205,7 +205,13 @@ export function ReportsPage() {
               período selecionado.
             </p>
           </div>
-          <span className="rounded-xl bg-[#eaf4ec] px-3 py-1.5 text-sm font-semibold text-[#2e7152] dark:bg-emerald-950 dark:text-emerald-300">
+          <span
+            className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${
+              balance >= 0
+                ? "bg-[#eaf4ec] text-[#2e7152] dark:bg-emerald-950 dark:text-emerald-300"
+                : "bg-[#fdebed] text-[#b84c5d] dark:bg-rose-950 dark:text-rose-300"
+            }`}
+          >
             {formatCurrency(balance)}
           </span>
         </div>
@@ -247,7 +253,7 @@ export function ReportsPage() {
             <TableFooter>
               <TableRow>
                 <TableCell>Total</TableCell>
-                <TableCell className="text-right text-[#2e7152]">
+                <TableCell className="text-right text-[#2e7152] dark:text-emerald-300">
                   {formatCurrency(totalIncome)}
                 </TableCell>
                 <TableCell className="text-right text-destructive">
@@ -271,16 +277,16 @@ function CashFlowRow({ point }: { point: CashFlowPoint }) {
   const dailyBalance = income - expense
 
   return (
-    <TableRow>
+    <TableRow className="print:break-inside-avoid">
       <TableCell className="font-medium">{formatDate(point.date)}</TableCell>
-      <TableCell className="text-right text-[#2e7152]">
+      <TableCell className="text-right text-[#2e7152] dark:text-emerald-300">
         {formatCurrency(income)}
       </TableCell>
       <TableCell className="text-right text-destructive">
         {formatCurrency(expense)}
       </TableCell>
       <TableCell
-        className={`text-right font-medium ${dailyBalance < 0 ? "text-destructive" : "text-[#2e7152]"}`}
+        className={`text-right font-medium ${dailyBalance < 0 ? "text-destructive" : "text-[#2e7152] dark:text-emerald-300"}`}
       >
         {formatCurrency(dailyBalance)}
       </TableCell>

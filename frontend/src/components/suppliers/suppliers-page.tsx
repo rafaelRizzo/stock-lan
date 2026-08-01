@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react"
 import {
   Archive,
+  ArchiveRestore,
   ChevronLeft,
   ChevronRight,
   LoaderCircle,
@@ -42,6 +43,7 @@ import {
   useArchiveSupplier,
   useCreateSupplier,
   useDeleteSupplier,
+  useRestoreSupplier,
   useSuppliers,
   useUpdateSupplier,
 } from "@/hooks/suppliers/use-suppliers"
@@ -76,6 +78,7 @@ export function SuppliersPage() {
     includeArchived: !status,
   })
   const archive = useArchiveSupplier()
+  const restore = useRestoreSupplier()
   const remove = useDeleteSupplier()
   const { data: user } = useCurrentUser()
   const canEdit = user?.role === "ADMIN" || user?.role === "MANAGER"
@@ -137,6 +140,8 @@ export function SuppliersPage() {
                   onArchive={setArchiveTarget}
                   onDelete={setDeleteTarget}
                   onEdit={setEditTarget}
+                  onRestore={(item) => restore.mutate(item.id)}
+                  restoring={restore.isPending}
                   supplier={supplier}
                 />
               ))}
@@ -199,7 +204,7 @@ function Filters({
       <div className="relative w-full sm:w-[28rem]">
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          className="h-10 rounded-xl bg-muted/40 pl-9 shadow-none"
+          className="h-10 rounded-xl pl-9 shadow-none"
           onChange={(event) => onSearch(event.target.value)}
           placeholder="Buscar fornecedor"
           value={search}
@@ -230,6 +235,8 @@ function SupplierRow({
   onArchive,
   onDelete,
   onEdit,
+  onRestore,
+  restoring,
   supplier,
 }: {
   canArchive: boolean
@@ -237,6 +244,8 @@ function SupplierRow({
   onArchive: (supplier: Supplier) => void
   onDelete: (supplier: Supplier) => void
   onEdit: (supplier: Supplier) => void
+  onRestore: (supplier: Supplier) => void
+  restoring: boolean
   supplier: Supplier
 }) {
   return (
@@ -279,11 +288,22 @@ function SupplierRow({
             <Pencil className="size-4" />
           </Button>
         )}
-        {canArchive && (
+        {canArchive && supplier.status === "ARCHIVED" && (
+          <Button
+            aria-label={`Restaurar ${supplier.name}`}
+            className="text-muted-foreground hover:text-foreground"
+            disabled={restoring}
+            onClick={() => onRestore(supplier)}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <ArchiveRestore className="size-4" />
+          </Button>
+        )}
+        {canArchive && supplier.status !== "ARCHIVED" && (
           <Button
             aria-label={`Arquivar ${supplier.name}`}
             className="text-muted-foreground hover:text-destructive"
-            disabled={supplier.status === "ARCHIVED"}
             onClick={() => onArchive(supplier)}
             size="icon-sm"
             variant="ghost"

@@ -84,6 +84,7 @@ model User {
   payments        Payment[]
   expenseTemplates ExpenseTemplate[]
   expenses        Expense[]
+  notificationReads NotificationRead[]
 
   @@index([status])
   @@index([createdUserId])
@@ -295,6 +296,8 @@ model ExpenseTemplate {
   recurrence    ExpenseRecurrence
   defaultValue  Decimal           @db.Decimal(14, 2)
   status        EntityStatus      @default(ACTIVE)
+  anchorDate    DateTime?         @db.Date
+  nextDueDate   DateTime?         @db.Date
   obs           String?
   createdUserId String
   createdAt     DateTime          @default(now())
@@ -305,6 +308,7 @@ model ExpenseTemplate {
   @@index([recurrence])
   @@index([status, createdAt])
   @@index([createdUserId])
+  @@index([nextDueDate])
 }
 
 model Expense {
@@ -326,6 +330,31 @@ model Expense {
   @@index([expenseTemplateId])
   @@index([createdUserId])
   @@index([createdAt])
+}
+
+model Notification {
+  id         String             @id @default(cuid())
+  type       String
+  title      String
+  message    String
+  entityType String
+  entityId   String
+  createdAt  DateTime           @default(now())
+  reads      NotificationRead[]
+
+  @@index([type, createdAt])
+}
+
+model NotificationRead {
+  id             String       @id @default(cuid())
+  notificationId String
+  userId         String
+  readAt         DateTime     @default(now())
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@unique([notificationId, userId])
+  @@index([userId])
 }
 
 model Audit {

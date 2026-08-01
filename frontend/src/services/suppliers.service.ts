@@ -43,6 +43,9 @@ export const suppliersService = {
   async archive(id: string) {
     await http.delete(`/suppliers/${id}`)
   },
+  async restore(id: string) {
+    await http.patch(`/suppliers/${id}/restore`)
+  },
   async delete(id: string) {
     await http.delete(`/suppliers/${id}/permanent`)
   },

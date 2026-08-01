@@ -37,4 +37,12 @@ export async function registerUsersRoutes(
         },
         usersController.archive,
     );
+    app.patch(
+        "/users/:id/restore",
+        {
+            preHandler: requireRole("ADMIN"),
+            schema: { tags: ["users"] },
+        },
+        usersController.restore,
+    );
 }

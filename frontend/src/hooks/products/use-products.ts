@@ -50,6 +50,17 @@ export function useArchiveProduct() {
   })
 }
 
+export function useRestoreProduct() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => productsService.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] })
+      notify.success("Produto restaurado com sucesso.")
+    },
+  })
+}
+
 export function useDeleteProduct() {
   const queryClient = useQueryClient()
   return useMutation({

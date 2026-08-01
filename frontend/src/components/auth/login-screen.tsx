@@ -40,9 +40,9 @@ export function LoginScreen() {
   }
 
   return (
-    <main className="min-h-svh bg-[#f7f8f6] p-3 text-[#18231f] sm:p-5 lg:p-7 dark:bg-background dark:text-foreground">
-      <div className="mx-auto grid min-h-[calc(100svh-1.5rem)] max-w-[1440px] overflow-hidden rounded-[2rem] border border-[#e5e9e4] bg-white shadow-[0_24px_80px_-38px_rgba(25,49,36,0.36)] lg:min-h-[calc(100svh-3.5rem)] lg:grid-cols-[0.95fr_1.05fr] dark:border-border dark:bg-card">
-        <section className="flex flex-col px-6 py-7 sm:px-10 sm:py-9 lg:px-14 lg:py-12 xl:px-20">
+    <main className="flex h-svh bg-[#f7f8f6] p-3 text-[#18231f] sm:p-5 lg:p-7 dark:bg-background dark:text-foreground">
+      <div className="mx-auto grid w-full max-w-[1440px] overflow-hidden rounded-[2rem] border border-[#e5e9e4] bg-white shadow-[0_24px_80px_-38px_rgba(25,49,36,0.36)] lg:grid-cols-[0.95fr_1.05fr] dark:border-border dark:bg-card">
+        <section className="flex flex-col overflow-y-auto px-6 py-7 sm:px-10 sm:py-9 lg:px-14 lg:py-12 xl:px-20">
           <a
             className="flex w-fit items-center gap-3"
             href="/"

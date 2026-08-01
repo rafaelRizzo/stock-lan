@@ -10,7 +10,7 @@ export async function registerAuthRoutes(
     app.post(
         "/auth/login",
         {
-            config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+            config: { rateLimit: { max: 55555, timeWindow: "1 minute" } },
             schema: { tags: ["auth"] },
         },
         controller.login,

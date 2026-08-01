@@ -44,6 +44,17 @@ export function useArchiveQuantityType() {
   })
 }
 
+export function useRestoreQuantityType() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => quantityTypesService.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quantity-types"] })
+      notify.success("Tipo de quantidade restaurado com sucesso.")
+    },
+  })
+}
+
 export function useDeleteQuantityType() {
   const queryClient = useQueryClient()
   return useMutation({

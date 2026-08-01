@@ -42,6 +42,9 @@ export const quantityTypesService = {
   async archive(id: string) {
     await http.delete(`/quantity-types/${id}`)
   },
+  async restore(id: string) {
+    await http.patch(`/quantity-types/${id}/restore`)
+  },
   async delete(id: string) {
     await http.delete(`/quantity-types/${id}/permanent`)
   },

@@ -109,7 +109,7 @@ export function StockBatchesPage() {
           <div className="relative w-full sm:w-[28rem]">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-10 rounded-xl bg-muted/40 pl-9 shadow-none"
+              className="h-10 rounded-xl pl-9 shadow-none"
               placeholder="Buscar produto ou fornecedor"
               value={search}
               onChange={(event) => {

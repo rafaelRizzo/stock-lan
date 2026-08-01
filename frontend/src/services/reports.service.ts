@@ -19,9 +19,37 @@ export type DashboardSummaryParams = {
   endDate?: string
 }
 
+export type DebtReport = {
+  id: string
+  clientName: string | null
+  total: string | number
+  createdAt: string
+  debtor: { id: string; name: string } | null
+  payments: Array<{
+    id: string
+    amount: string | number
+    method: "CASH" | "PIX" | "CARD" | "BANK_TRANSFER" | "OTHER"
+    paidAt: string
+  }>
+}
+
+export type PaginatedDebtReports = {
+  data: DebtReport[]
+  total: number
+  totalPage: number
+  page: number
+  limit: number
+}
+
 export const reportsService = {
   async dashboard(params?: DashboardSummaryParams) {
     const { data } = await http.get<DashboardSummary>("/reports/dashboard", {
+      params,
+    })
+    return data
+  },
+  async debts(params: { page: number; limit: number }) {
+    const { data } = await http.get<PaginatedDebtReports>("/reports/debts", {
       params,
     })
     return data

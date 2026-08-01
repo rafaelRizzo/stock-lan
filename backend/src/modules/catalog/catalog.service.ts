@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { getOrSetLocal, invalidatePrefix } from "../../lib/cache.js";
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
+import { computeNextDueDate, type RecurrenceKind } from "../../lib/recurrence.js";
 import type { CatalogResource } from "./catalog.schemas.js";
 
 type CrudDelegate = {
@@ -35,6 +36,20 @@ async function audit(
             previous: previous as object | undefined,
         },
     });
+}
+
+function resolveExpenseTemplateSchedule(effective: {
+    recurrence: string;
+    anchorDate?: Date | null;
+    status: string;
+}): { anchorDate: Date | null; nextDueDate: Date | null } {
+    if (effective.recurrence === "ONE_TIME") return { anchorDate: null, nextDueDate: null };
+    if (!effective.anchorDate) throw new AppError(400, "anchorDate is required for recurring expense templates");
+    if (effective.status !== "ACTIVE") return { anchorDate: effective.anchorDate, nextDueDate: null };
+    return {
+        anchorDate: effective.anchorDate,
+        nextDueDate: computeNextDueDate(effective.anchorDate, effective.recurrence as RecurrenceKind, new Date()),
+    };
 }
 
 export const catalogService = {
@@ -132,7 +147,18 @@ export const catalogService = {
             return item;
         }),
     create: async (resource: CatalogResource, data: Record<string, unknown>, userId: string) => {
-        const item = await db[resource.delegate].create({ data: { ...data, createdUserId: userId } });
+        let payload = data;
+        if (resource.delegate === "expenseTemplate") {
+            payload = {
+                ...data,
+                ...resolveExpenseTemplateSchedule({
+                    recurrence: data.recurrence as string,
+                    anchorDate: data.anchorDate as Date | undefined,
+                    status: (data.status as string) ?? "ACTIVE",
+                }),
+            };
+        }
+        const item = await db[resource.delegate].create({ data: { ...payload, createdUserId: userId } });
         await audit(resource.delegate, item.id, "CREATE", userId, item);
         await invalidatePrefix(`catalog:${resource.delegate}:`);
         await invalidatePrefix("stock:");
@@ -142,7 +168,19 @@ export const catalogService = {
     update: async (resource: CatalogResource, id: string, data: Record<string, unknown>, userId: string) => {
         const previous = await db[resource.delegate].findUnique({ where: { id } });
         if (!previous) throw new AppError(404, "Resource not found");
-        const item = await db[resource.delegate].update({ where: { id }, data });
+        let payload = data;
+        if (resource.delegate === "expenseTemplate") {
+            const prev = previous as unknown as { recurrence: string; anchorDate: Date | null; status: string };
+            payload = {
+                ...data,
+                ...resolveExpenseTemplateSchedule({
+                    recurrence: (data.recurrence as string) ?? prev.recurrence,
+                    anchorDate: (data.anchorDate as Date | undefined) ?? prev.anchorDate ?? undefined,
+                    status: (data.status as string) ?? prev.status,
+                }),
+            };
+        }
+        const item = await db[resource.delegate].update({ where: { id }, data: payload });
         await audit(resource.delegate, id, "UPDATE", userId, item, previous);
         await invalidatePrefix(`catalog:${resource.delegate}:`);
         await invalidatePrefix("stock:");
@@ -154,6 +192,27 @@ export const catalogService = {
         if (!previous) throw new AppError(404, "Resource not found");
         const item = await db[resource.delegate].update({ where: { id }, data: { status: "ARCHIVED" } });
         await audit(resource.delegate, id, "ARCHIVE", userId, item, previous);
+        await invalidatePrefix(`catalog:${resource.delegate}:`);
+        await invalidatePrefix("stock:");
+        await invalidatePrefix("reports:");
+    },
+    restore: async (resource: CatalogResource, id: string, userId: string) => {
+        const previous = await db[resource.delegate].findUnique({ where: { id } });
+        if (!previous) throw new AppError(404, "Resource not found");
+        let data: Record<string, unknown> = { status: "ACTIVE" };
+        if (resource.delegate === "expenseTemplate") {
+            const prev = previous as unknown as { recurrence: string; anchorDate: Date | null };
+            data = {
+                ...data,
+                ...resolveExpenseTemplateSchedule({
+                    recurrence: prev.recurrence,
+                    anchorDate: prev.anchorDate ?? undefined,
+                    status: "ACTIVE",
+                }),
+            };
+        }
+        const item = await db[resource.delegate].update({ where: { id }, data });
+        await audit(resource.delegate, id, "RESTORE", userId, item, previous);
         await invalidatePrefix(`catalog:${resource.delegate}:`);
         await invalidatePrefix("stock:");
         await invalidatePrefix("reports:");

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import {
   CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   LoaderCircle,
@@ -84,6 +85,7 @@ export function ExpensesPage() {
   })
   const { data: user } = useCurrentUser()
   const canManage = user?.role === "ADMIN" || user?.role === "MANAGER"
+  const markPaid = useUpdateExpense()
 
   return (
     <div className="mx-auto w-full max-w-7xl">
@@ -113,7 +115,7 @@ export function ExpensesPage() {
           <div className="relative w-full sm:w-[28rem]">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-10 rounded-xl bg-muted/40 pl-9 shadow-none"
+              className="h-10 rounded-xl pl-9 shadow-none"
               placeholder="Buscar despesa"
               value={search}
               onChange={(event) => {
@@ -161,8 +163,15 @@ export function ExpensesPage() {
                   canManage={canManage}
                   expense={expense}
                   key={expense.id}
+                  markingPaid={markPaid.isPending}
                   onDelete={setDeleteTarget}
                   onEdit={setEditTarget}
+                  onMarkPaid={(item) =>
+                    markPaid.mutate({
+                      id: item.id,
+                      input: { status: "PAID", paidAt: new Date() },
+                    })
+                  }
                 />
               ))
             )}
@@ -193,13 +202,17 @@ export function ExpensesPage() {
 function ExpenseRow({
   expense,
   canManage,
+  markingPaid,
   onEdit,
   onDelete,
+  onMarkPaid,
 }: {
   expense: Expense
   canManage: boolean
+  markingPaid: boolean
   onEdit: (expense: Expense) => void
   onDelete: (expense: Expense) => void
+  onMarkPaid: (expense: Expense) => void
 }) {
   const colors: Record<ExpenseStatus, string> = {
     PENDING:
@@ -234,6 +247,18 @@ function ExpenseRow({
         </Badge>
       </TableCell>
       <TableCell>
+        {canManage && expense.status === "PENDING" && (
+          <Button
+            aria-label={`Dar baixa em ${expense.name}`}
+            className="text-muted-foreground hover:text-emerald-600"
+            disabled={markingPaid}
+            onClick={() => onMarkPaid(expense)}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <CheckCircle2 className="size-4" />
+          </Button>
+        )}
         {canManage && (
           <>
             <Button

@@ -65,5 +65,13 @@ export async function registerCatalogRoutes(
             },
             controller.archive,
         );
+        app.patch(
+            `/${resource.path}/:id/restore`,
+            {
+                preHandler: requireRole("ADMIN"),
+                schema: { tags: [resource.path] },
+            },
+            controller.restore,
+        );
     }
 }

@@ -54,6 +54,10 @@ export function createCatalogController(resource: CatalogResource) {
             await catalogService.archive(resource, parse(idParamsSchema, request.params).id, request.user.sub);
             return reply.status(204).send();
         },
+        restore: async (request: FastifyRequest, reply: FastifyReply) => {
+            await catalogService.restore(resource, parse(idParamsSchema, request.params).id, request.user.sub);
+            return reply.status(204).send();
+        },
         permanentDelete: async (request: FastifyRequest, reply: FastifyReply) => {
             await catalogService.permanentDelete(resource, parse(idParamsSchema, request.params).id, request.user.sub);
             return reply.status(204).send();
