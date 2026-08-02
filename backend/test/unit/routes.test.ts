@@ -42,6 +42,7 @@ test("registers stock routes", async () => {
     await registerStockRoutes(app);
     expect(routes.map((route) => route.url)).toEqual([
         "/stock/batches",
+        "/stock/no-cost",
         "/stock/batches",
         "/stock/batches/:id",
         "/stock/batches/:id",

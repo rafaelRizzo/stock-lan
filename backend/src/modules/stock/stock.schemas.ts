@@ -16,6 +16,13 @@ export const stockBatchSchema = z.object({
 
 export const stockBatchUpdateSchema = stockBatchSchema;
 
+export const noCostStockSchema = z.object({
+    productId: z.string().cuid(),
+    quantityTypeId: z.string().cuid(),
+    quantity: z.coerce.number().positive().max(MAX_QUANTITY),
+    obs: z.string().trim().max(2000).optional(),
+});
+
 export const stockAdjustmentSchema = z.object({
     stockBatchId: z.string().cuid(),
     quantity: z.coerce

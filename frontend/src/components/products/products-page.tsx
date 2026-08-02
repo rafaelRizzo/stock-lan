@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LoaderCircle,
+  PackagePlus,
   Pencil,
   Plus,
   Search,
@@ -54,6 +55,7 @@ import {
 } from "@/hooks/products/use-products"
 import { useCurrentUser } from "@/hooks/auth/use-current-user"
 import { useQuantityTypes } from "@/hooks/quantity-types/use-quantity-types"
+import { useAddNoCostStock } from "@/hooks/stock/use-stock-batches"
 import { DEFAULT_PAGE_SIZE, PRODUCT_TYPE_LABELS } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type { Product, ProductStatus, ProductType } from "@/services/products.service"
@@ -74,6 +76,7 @@ export function ProductsPage() {
   const [target, setTarget] = useState<Product | null>(null)
   const [editTarget, setEditTarget] = useState<Product | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
+  const [stockTarget, setStockTarget] = useState<Product | null>(null)
   const products = useProducts({
     page,
     limit: pageSize,
@@ -189,6 +192,7 @@ export function ProductsPage() {
                   canArchive={canArchive}
                   canEdit={canCreate}
                   key={product.id}
+                  onAddStock={setStockTarget}
                   onArchive={setTarget}
                   onDelete={setDeleteTarget}
                   onEdit={setEditTarget}
@@ -243,6 +247,10 @@ export function ProductsPage() {
       <EditProductDialog
         onClose={() => setEditTarget(null)}
         product={editTarget}
+      />
+      <AddStockDialog
+        onClose={() => setStockTarget(null)}
+        product={stockTarget}
       />
       <ArchiveProductDialog
         onClose={() => setTarget(null)}
@@ -318,6 +326,7 @@ function ProductTypeSelect({
 function ProductRow({
   canArchive,
   canEdit,
+  onAddStock,
   onArchive,
   onDelete,
   onEdit,
@@ -327,6 +336,7 @@ function ProductRow({
 }: {
   canArchive: boolean
   canEdit: boolean
+  onAddStock: (product: Product) => void
   onArchive: (product: Product) => void
   onDelete: (product: Product) => void
   onEdit: (product: Product) => void
@@ -375,6 +385,17 @@ function ProductRow({
         )}
       </TableCell>
       <TableCell>
+        {canEdit && (
+          <Button
+            aria-label={`Adicionar estoque de ${product.name}`}
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => onAddStock(product)}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <PackagePlus className="size-4" />
+          </Button>
+        )}
         {canEdit && (
           <Button
             aria-label={`Editar ${product.name}`}
@@ -713,6 +734,115 @@ function EditProductDialog({
                 <LoaderCircle className="size-4 animate-spin" />
               )}
               Salvar alterações
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+function AddStockDialog({
+  onClose,
+  product,
+}: {
+  onClose: () => void
+  product: Product | null
+}) {
+  const [quantity, setQuantity] = useState("")
+  const [quantityTypeId, setQuantityTypeId] = useState("")
+  const [obs, setObs] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const quantityTypes = useQuantityTypes({ page: 1, limit: 100, status: "ACTIVE" })
+  const addStock = useAddNoCostStock()
+  useEffect(() => {
+    if (product) {
+      setQuantity("")
+      setQuantityTypeId("")
+      setObs("")
+      setError(null)
+    }
+  }, [product])
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!product) return
+    const value = Number(quantity.replace(",", "."))
+    if (!Number.isFinite(value) || value <= 0)
+      return setError("Informe uma quantidade válida.")
+    if (!quantityTypeId) return setError("Selecione a unidade.")
+    setError(null)
+    try {
+      await addStock.mutateAsync({
+        productId: product.id,
+        quantityTypeId,
+        quantity: value,
+        obs: obs.trim() || undefined,
+      })
+      onClose()
+    } catch (reason) {
+      setError(getApiErrorMessage(reason))
+    }
+  }
+  return (
+    <Dialog onOpenChange={(open) => !open && onClose()} open={Boolean(product)}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Adicionar estoque</DialogTitle>
+          <DialogDescription>
+            {product
+              ? `Adicione um lote sem custo de compra para ${product.name}.`
+              : ""}
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={submit}>
+          <ProductInput
+            label="Quantidade"
+            onChange={setQuantity}
+            placeholder="0"
+            price
+            value={quantity}
+          />
+          <label className="grid gap-2 text-sm font-medium">
+            Unidade
+            <Select
+              onValueChange={(value) => setQuantityTypeId(value ?? "")}
+              value={quantityTypeId}
+            >
+              <SelectTrigger className="h-10! w-full rounded-xl! border-[#dce3de]! bg-background! shadow-none dark:border-border!">
+                <span>
+                  {quantityTypes.data?.data.find(
+                    (item) => item.id === quantityTypeId
+                  )?.name || "Selecione"}
+                </span>
+              </SelectTrigger>
+              <SelectContent>
+                {quantityTypes.data?.data.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+          <label className="grid gap-2 text-sm font-medium">
+            Observação
+            <Textarea
+              className="min-h-20 rounded-xl border-[#dce3de] bg-background shadow-none dark:border-border"
+              onChange={(event) => setObs(event.target.value)}
+              placeholder="Opcional"
+              value={obs}
+            />
+          </label>
+          {error && <p className="text-sm font-medium text-red-400">{error}</p>}
+          <DialogFooter>
+            <Button
+              className="rounded-xl bg-[#173f31] text-white hover:bg-[#245742]"
+              disabled={addStock.isPending}
+              type="submit"
+            >
+              {addStock.isPending && (
+                <LoaderCircle className="size-4 animate-spin" />
+              )}
+              Adicionar estoque
             </Button>
           </DialogFooter>
         </form>

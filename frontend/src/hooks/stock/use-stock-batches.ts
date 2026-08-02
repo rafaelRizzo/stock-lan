@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   stockService,
+  type AddNoCostStockInput,
   type CreateStockBatchInput,
   type StockBatchesParams,
 } from "@/services/stock.service"
@@ -57,6 +58,20 @@ export function useUpdateStockBatch() {
       queryClient.invalidateQueries({ queryKey: ["stock"] })
       queryClient.invalidateQueries({ queryKey: ["dashboard"] })
       notify.success("Entrada atualizada com sucesso.")
+    },
+  })
+}
+
+export function useAddNoCostStock() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: AddNoCostStockInput) => stockService.addNoCostStock(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["stock"] })
+      queryClient.invalidateQueries({ queryKey: ["catalog"] })
+      queryClient.invalidateQueries({ queryKey: ["products"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] })
+      notify.success("Estoque adicionado com sucesso.")
     },
   })
 }

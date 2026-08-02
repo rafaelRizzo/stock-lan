@@ -16,6 +16,14 @@ export async function registerStockRoutes(
         },
         stockController.createBatch,
     );
+    app.post(
+        "/stock/no-cost",
+        {
+            preHandler: requireRole("ADMIN", "MANAGER"),
+            schema: { tags: ["stock"] },
+        },
+        stockController.addNoCostStock,
+    );
     app.get(
         "/stock/batches",
         {

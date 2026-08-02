@@ -72,6 +72,12 @@ export type CreateStockBatchInput = {
   quantityNotify?: number
   obs?: string
 }
+export type AddNoCostStockInput = {
+  productId: string
+  quantityTypeId: string
+  quantity: number
+  obs?: string
+}
 
 export const stockService = {
   async listBatches(params: StockBatchesParams) {
@@ -106,6 +112,10 @@ export const stockService = {
   },
   async getProductStock(productId: string) {
     const { data } = await http.get<ProductStock>(`/stock/products/${productId}`)
+    return data
+  },
+  async addNoCostStock(input: AddNoCostStockInput) {
+    const { data } = await http.post<StockBatch>("/stock/no-cost", input)
     return data
   },
 }
