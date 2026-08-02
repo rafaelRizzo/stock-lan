@@ -16,6 +16,8 @@ export function createCatalogController(resource: CatalogResource) {
                       ? {}
                       : { status: { not: "ARCHIVED" } }),
                 ...(query.search ? { name: { contains: query.search, mode: "insensitive" } } : {}),
+                ...(resource.delegate === "product" && query.type ? { type: query.type } : {}),
+                ...(resource.delegate === "product" && query.typeNot ? { type: { not: query.typeNot } } : {}),
             };
             const [data, total] = await catalogService.list(
                 resource,

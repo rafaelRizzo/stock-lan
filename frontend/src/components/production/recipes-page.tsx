@@ -53,10 +53,9 @@ export function RecipesPage() {
     limit: pageSize,
     search: search || undefined,
     status: "ACTIVE",
+    typeNot: "RAW_MATERIAL",
   })
-  const finishedProducts = products.data?.data.filter(
-    (product) => product.type !== "RAW_MATERIAL"
-  )
+  const finishedProducts = products.data?.data
 
   return (
     <div className="mx-auto w-full max-w-7xl">

@@ -1,14 +1,17 @@
 import { z } from "zod";
-import { MAX_MONEY } from "../../lib/decimal-limits.js";
+import { MAX_MONEY, MAX_QUANTITY } from "../../lib/decimal-limits.js";
 import { paginationSchema } from "../../lib/pagination.js";
 
 export const entityStatusSchema = z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]);
+export const productTypeSchema = z.enum(["RAW_MATERIAL", "FINISHED", "BOTH"]);
 export const idParamsSchema = z.object({ id: z.string().cuid() });
 export const catalogListSchema = paginationSchema.extend({
     search: z.string().trim().max(120).optional(),
     status: entityStatusSchema.optional(),
     includeArchived: z.coerce.boolean().optional(),
     stockOrder: z.enum(["asc", "desc"]).optional(),
+    type: productTypeSchema.optional(),
+    typeNot: productTypeSchema.optional(),
 });
 
 export const catalogResources = [
@@ -26,6 +29,8 @@ export const catalogResources = [
             type: z.enum(["RAW_MATERIAL", "FINISHED", "BOTH"]).default("BOTH"),
             obs: z.string().trim().max(2000).optional(),
             status: entityStatusSchema.optional(),
+            initialQuantity: z.coerce.number().positive().max(MAX_QUANTITY).optional(),
+            initialQuantityTypeId: z.string().cuid().optional(),
         }),
     },
     {

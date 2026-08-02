@@ -26,12 +26,16 @@ export type ProductsParams = {
   status?: ProductStatus
   includeArchived?: boolean
   stockOrder?: "asc" | "desc"
+  type?: ProductType
+  typeNot?: ProductType
 }
 export type CreateProductInput = {
   name: string
   priceSell?: number
   type?: ProductType
   obs?: string
+  initialQuantity?: number
+  initialQuantityTypeId?: string
 }
 
 export const productsService = {

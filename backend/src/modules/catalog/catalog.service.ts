@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import argon2 from "argon2";
-import { getOrSetLocal, invalidatePrefix } from "../../lib/cache.js";
+import { getOrSetLocal, invalidate, invalidatePrefix } from "../../lib/cache.js";
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { computeNextDueDate, type RecurrenceKind } from "../../lib/recurrence.js";
@@ -80,10 +80,17 @@ export const catalogService = {
                             typeof productWhere.name === "object" && "contains" in productWhere.name
                                 ? productWhere.name.contains
                                 : undefined;
+                        const type = typeof productWhere.type === "string" ? productWhere.type : undefined;
+                        const typeNot =
+                            typeof productWhere.type === "object" && productWhere.type && "not" in productWhere.type
+                                ? productWhere.type.not
+                                : undefined;
                         const filters = [
                             status ? Prisma.sql`p."status" = ${status}::"EntityStatus"` : undefined,
                             excludesArchived ? Prisma.sql`p."status" != 'ARCHIVED'::"EntityStatus"` : undefined,
                             search ? Prisma.sql`p."name" ILIKE ${`%${search}%`}` : undefined,
+                            type ? Prisma.sql`p."type" = ${type}::"ProductType"` : undefined,
+                            typeNot ? Prisma.sql`p."type" != ${typeNot}::"ProductType"` : undefined,
                         ].filter((filter): filter is Prisma.Sql => Boolean(filter));
                         const whereClause = filters.length
                             ? Prisma.sql`WHERE ${Prisma.join(filters, " AND ")}`
@@ -164,20 +171,64 @@ export const catalogService = {
                 }),
             };
         }
+        let initialQuantity: number | undefined;
+        let initialQuantityTypeId: string | undefined;
         if (resource.delegate === "product") {
+            const {
+                initialQuantity: quantity,
+                initialQuantityTypeId: quantityTypeId,
+                ...productData
+            } = data as {
+                initialQuantity?: number;
+                initialQuantityTypeId?: string;
+            } & Record<string, unknown>;
+            if ((quantity === undefined) !== (quantityTypeId === undefined))
+                throw new AppError(400, "initialQuantity and initialQuantityTypeId must be provided together");
+            initialQuantity = quantity;
+            initialQuantityTypeId = quantityTypeId;
             payload = {
-                ...data,
+                ...productData,
                 ...resolveProductPricing({
-                    type: (data.type as string) ?? "BOTH",
-                    priceSell: data.priceSell as number | undefined,
+                    type: (productData.type as string) ?? "BOTH",
+                    priceSell: productData.priceSell as number | undefined,
                 }),
             };
         }
-        const item = await db[resource.delegate].create({ data: { ...payload, createdUserId: userId } });
+        const item =
+            initialQuantity !== undefined && initialQuantityTypeId !== undefined
+                ? await prisma.$transaction(async (tx) => {
+                      const product = await tx.product.create({
+                          data: { ...payload, createdUserId: userId } as Prisma.ProductUncheckedCreateInput,
+                      });
+                      const batch = await tx.stockBatch.create({
+                          data: {
+                              productId: product.id,
+                              quantityTypeId: initialQuantityTypeId as string,
+                              quantityIn: initialQuantity as number,
+                              quantityLeft: initialQuantity as number,
+                              priceBuy: 0,
+                              dateBuy: new Date(),
+                              createdUserId: userId,
+                          },
+                      });
+                      await tx.stockMovement.create({
+                          data: {
+                              type: "IN",
+                              productId: product.id,
+                              stockBatchId: batch.id,
+                              quantity: initialQuantity as number,
+                              costUnit: 0,
+                              createdUserId: userId,
+                          },
+                      });
+                      return product;
+                  })
+                : await db[resource.delegate].create({ data: { ...payload, createdUserId: userId } });
         await audit(resource.delegate, item.id, "CREATE", userId, item);
         await invalidatePrefix(`catalog:${resource.delegate}:`);
         await invalidatePrefix("stock:");
         await invalidatePrefix("reports:");
+        if (initialQuantity !== undefined) await invalidate("dashboard");
         return item;
     },
     update: async (resource: CatalogResource, id: string, data: Record<string, unknown>, userId: string) => {
@@ -197,12 +248,17 @@ export const catalogService = {
         }
         if (resource.delegate === "product") {
             const prev = previous as unknown as { type: string; priceSell: unknown };
+            const {
+                initialQuantity: _initialQuantity,
+                initialQuantityTypeId: _initialQuantityTypeId,
+                ...productData
+            } = data as { initialQuantity?: number; initialQuantityTypeId?: string } & Record<string, unknown>;
             payload = {
-                ...data,
+                ...productData,
                 ...resolveProductPricing({
-                    type: (data.type as string) ?? prev.type,
+                    type: (productData.type as string) ?? prev.type,
                     priceSell:
-                        (data.priceSell as number | undefined) ??
+                        (productData.priceSell as number | undefined) ??
                         (prev.priceSell == null ? undefined : Number(prev.priceSell)),
                 }),
             };
