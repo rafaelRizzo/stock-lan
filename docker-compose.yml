@@ -1,9 +1,9 @@
 services:
   api:
-    build: .
+    build: ./backend
     container_name: stock-lan-back-end
     env_file:
-      - .env
+      - ./backend/.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -11,6 +11,15 @@ services:
         condition: service_healthy
     networks:
       - default
+      - proxy
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    container_name: stock-lan-front-end
+    networks:
       - proxy
 
   postgres:
