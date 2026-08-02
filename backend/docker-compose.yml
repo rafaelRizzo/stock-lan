@@ -20,7 +20,7 @@ services:
       POSTGRES_PASSWORD: stock
       POSTGRES_DB: stock_lan
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - stock_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U stock -d stock_lan"]
       interval: 5s
@@ -30,7 +30,7 @@ services:
   redis:
     image: redis:7-alpine
     volumes:
-      - redis_data:/data
+      - stock_redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -38,8 +38,8 @@ services:
       retries: 10
 
 volumes:
-  postgres_data:
-  redis_data:
+  stock_postgres_data:
+  stock_redis_data:
 
 networks:
   proxy:
