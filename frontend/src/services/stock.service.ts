@@ -47,7 +47,6 @@ export type StockMovement = {
   product: { id: string; name: string }
   stockBatch: { id: string }
   sale: { id: string; clientName: string | null } | null
-  productionOrder: { id: string; finishedProduct?: { name: string } } | null
 }
 export type ProductStock = {
   product: { id: string; name: string }

@@ -91,8 +91,6 @@ model User {
   expenseTemplates  ExpenseTemplate[]
   expenses          Expense[]
   notificationReads NotificationRead[]
-  recipeItems       RecipeItem[]
-  productionOrders  ProductionOrder[]
 
   @@index([status])
   @@index([createdUserId])
@@ -125,7 +123,6 @@ model QuantityType {
   updatedAt        DateTime          @updatedAt
   createdUser      User              @relation(fields: [createdUserId], references: [id])
   stockBatches     StockBatch[]
-  productionOrders ProductionOrder[]
 
   @@index([status, createdAt])
   @@index([createdUserId])
@@ -161,50 +158,7 @@ model Product {
   stockBatches     StockBatch[]
   saleItems        SaleItem[]
   movements        StockMovement[]
-  recipeAsFinished RecipeItem[]      @relation("RecipeFinished")
-  recipeAsRaw      RecipeItem[]      @relation("RecipeRaw")
-  productionOrders ProductionOrder[]
 
-  @@index([status, createdAt])
-  @@index([createdUserId])
-}
-
-model RecipeItem {
-  id                String   @id @default(cuid())
-  finishedProductId String
-  rawProductId      String
-  quantityPerUnit   Decimal  @db.Decimal(14, 3)
-  createdUserId     String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  finishedProduct   Product  @relation("RecipeFinished", fields: [finishedProductId], references: [id], onDelete: Cascade)
-  rawProduct        Product  @relation("RecipeRaw", fields: [rawProductId], references: [id])
-  createdUser       User     @relation(fields: [createdUserId], references: [id])
-
-  @@unique([finishedProductId, rawProductId])
-  @@index([rawProductId])
-  @@index([createdUserId])
-}
-
-model ProductionOrder {
-  id                String          @id @default(cuid())
-  finishedProductId String
-  quantityTypeId    String
-  quantityProduced  Decimal         @db.Decimal(14, 3)
-  costUnit          Decimal         @db.Decimal(14, 2)
-  dateProduced      DateTime        @db.Date
-  obs               String?
-  status            EntityStatus    @default(ACTIVE)
-  createdUserId     String
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  finishedProduct   Product         @relation(fields: [finishedProductId], references: [id])
-  quantityType      QuantityType    @relation(fields: [quantityTypeId], references: [id])
-  createdUser       User            @relation(fields: [createdUserId], references: [id])
-  outputBatch       StockBatch?
-  movements         StockMovement[]
-
-  @@index([finishedProductId, createdAt])
   @@index([status, createdAt])
   @@index([createdUserId])
 }
@@ -238,14 +192,12 @@ model StockBatch {
   quantityNotify    Decimal?         @db.Decimal(14, 3)
   obs               String?
   status            EntityStatus     @default(ACTIVE)
-  productionOrderId String?          @unique
   createdUserId     String
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   supplier          Supplier?        @relation(fields: [supplierId], references: [id])
   product           Product          @relation(fields: [productId], references: [id])
   quantityType      QuantityType     @relation(fields: [quantityTypeId], references: [id])
-  productionOrder   ProductionOrder? @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
   createdUser       User             @relation(fields: [createdUserId], references: [id])
   saleItems         SaleItem[]
   movements         StockMovement[]
@@ -309,7 +261,6 @@ model StockMovement {
   productId         String
   stockBatchId      String
   saleId            String?
-  productionOrderId String?
   quantity          Decimal           @db.Decimal(14, 3)
   costUnit          Decimal           @db.Decimal(14, 2)
   obs               String?
@@ -319,14 +270,12 @@ model StockMovement {
   product           Product           @relation(fields: [productId], references: [id])
   stockBatch        StockBatch        @relation(fields: [stockBatchId], references: [id], onDelete: Cascade)
   sale              Sale?             @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  productionOrder   ProductionOrder?  @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
   createdUser       User              @relation(fields: [createdUserId], references: [id])
 
   @@index([type, createdAt])
   @@index([productId, createdAt])
   @@index([stockBatchId])
   @@index([saleId, createdAt])
-  @@index([productionOrderId, createdAt])
   @@index([createdUserId])
 }
 

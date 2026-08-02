@@ -56,14 +56,11 @@ The `catalog` module is a generic CRUD factory (`catalogService`/`createCatalogC
 
 **Testing** (`test/unit/services.test.ts`, `test/unit/routes.test.ts`): Bun test runner. `mock.module("../../src/lib/prisma.js", () => ({ prisma: prismaMock }))` replaces the whole Prisma client with a hand-built object exposing only the delegates/methods a test touches; `$transaction` is mocked to just invoke its callback with `prismaMock` (no real transaction semantics). Service modules must be imported dynamically (`await import(...)`) *after* `mock.module` runs, or the mock won't take effect. `routes.test.ts` uses a fake Fastify app that just records `{method, url}` per `register*Routes` call and asserts the exact route list.
 
-### Stock & production domain model
+### Stock domain model
 
 - `Product.type`: `RAW_MATERIAL | FINISHED | BOTH`. `priceSell` is nullable and is **required unless the product is `RAW_MATERIAL`** — enforced in `catalogService.create`/`update` via `resolveProductPricing`, not in the Zod schema (Zod schema keeps `priceSell` plain-optional because `catalog.controller.ts` calls `resource.schema.partial()` for updates, which requires a plain `ZodObject`, not a `.refine()`-wrapped one).
 - `salesService.allocateItems` (`sales.service.ts`) rejects selling a `RAW_MATERIAL` product directly.
-- `StockBatch` rows are FIFO-consumed (oldest `dateBuy` first) wherever stock is drawn down: sales (`sales.service.ts:allocateItems`) and production consumption (`production.service.ts:consumeIngredients`) both implement the same "loop batches ordered by `dateBuy`, take `min(remaining, batch.quantityLeft)`" pattern independently — check both when changing FIFO behavior.
-- `RecipeItem` is the bill-of-materials: `finishedProductId` → `rawProductId` + `quantityPerUnit` (no unit-conversion system — quantities are trusted to be in consistent units per raw product).
-- `ProductionOrder` converts insumo → produto final: consumes the recipe's raw materials via FIFO (creates `StockMovement` type `OUT` per consumed batch), then creates a new `StockBatch` for the finished product with `supplierId: null` and `priceBuy` set to the *real* computed cost (`totalConsumedCost / quantityProduced`), plus a `StockMovement` type `IN`. Both movement types carry `productionOrderId` (a nullable FK, same pattern as `StockMovement.saleId`) instead of introducing new enum values.
-- Editing a `ProductionOrder` (`productionService.update`) fully reverts the old consumption/output batch and re-runs consumption against the new input — blocked if the output batch already has `saleItems`. Same guard blocks `cancel`.
+- `StockBatch` rows are FIFO-consumed (oldest `dateBuy` first) wherever stock is drawn down: sales (`sales.service.ts:allocateItems`) implements the "loop batches ordered by `dateBuy`, take `min(remaining, batch.quantityLeft)`" pattern.
 
 ## Frontend architecture
 

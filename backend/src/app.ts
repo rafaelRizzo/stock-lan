@@ -12,7 +12,6 @@ import { registerAuthRoutes } from "./modules/auth/auth.routes.js";
 import { registerCatalogRoutes } from "./modules/catalog/catalog.routes.js";
 import { registerExpensesRoutes } from "./modules/expenses/expenses.routes.js";
 import { registerNotificationsRoutes } from "./modules/notifications/notifications.routes.js";
-import { registerProductionRoutes } from "./modules/production/production.routes.js";
 import { registerReportsRoutes } from "./modules/reports/reports.routes.js";
 import { registerSalesRoutes } from "./modules/sales/sales.routes.js";
 import { registerStockRoutes } from "./modules/stock/stock.routes.js";
@@ -56,7 +55,6 @@ export async function buildApp() {
     await registerUsersRoutes(app);
     await registerStockRoutes(app);
     await registerSalesRoutes(app);
-    await registerProductionRoutes(app);
     await registerReportsRoutes(app);
 
     if (env.DOCS_ENABLED)

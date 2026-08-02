@@ -147,12 +147,7 @@ function MovementRow({ movement }: { movement: StockMovement }) {
         {number(movement.quantity)}
       </TableCell>
       <TableCell className="hidden text-muted-foreground md:table-cell">
-        {movement.sale?.clientName ||
-          (movement.productionOrder
-            ? `Produção · ${movement.productionOrder.finishedProduct?.name ?? ""}`
-            : "") ||
-          movement.obs ||
-          "Lote de estoque"}
+        {movement.sale?.clientName || movement.obs || "Lote de estoque"}
       </TableCell>
       <TableCell className="hidden text-muted-foreground md:table-cell">
         {date(movement.createdAt)}
