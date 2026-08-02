@@ -1,6 +1,7 @@
 services:
   api:
     build: .
+    container_name: stock-lan-back-end
     environment:
       NODE_ENV: production
       PORT: 3333
@@ -10,13 +11,14 @@ services:
       JWT_REFRESH_SECRET: change-this-to-a-different-32-character-secret
       CORS_ORIGINS: http://localhost:5173
       DOCS_ENABLED: "true"
-    ports:
-      - "3333:3333"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - default
+      - proxy
 
   postgres:
     image: postgres:16-alpine
@@ -24,8 +26,6 @@ services:
       POSTGRES_USER: stock
       POSTGRES_PASSWORD: stock
       POSTGRES_DB: stock_lan
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -36,8 +36,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -49,3 +47,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  proxy:
+    external: true
