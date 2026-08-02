@@ -1,8 +1,11 @@
 import { randomBytes } from "node:crypto";
 import argon2 from "argon2";
 import type { FastifyInstance } from "fastify";
+import { getOrSetLocal, invalidate } from "../../lib/cache.js";
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
+
+const SETUP_STATUS_CACHE_KEY = "auth:setup-status";
 
 async function issueTokens(app: FastifyInstance, user: { id: string; role: "ADMIN" | "MANAGER" | "OPERATOR" }) {
     const secret = randomBytes(48).toString("base64url");
@@ -21,7 +24,8 @@ async function issueTokens(app: FastifyInstance, user: { id: string; role: "ADMI
 }
 
 export const authService = {
-    setupStatus: async () => ({ needsSetup: (await prisma.user.count()) === 0 }),
+    setupStatus: async () =>
+        getOrSetLocal(SETUP_STATUS_CACHE_KEY, 0, async () => ({ needsSetup: (await prisma.user.count()) === 0 })),
 
     setup: async (app: FastifyInstance, input: { name: string; username: string; password: string }) => {
         let user: { id: string; role: "ADMIN" | "MANAGER" | "OPERATOR" };
@@ -52,6 +56,7 @@ export const authService = {
                 throw new AppError(409, "Initial setup already completed");
             throw error;
         }
+        await invalidate(SETUP_STATUS_CACHE_KEY);
         return issueTokens(app, user);
     },
 
