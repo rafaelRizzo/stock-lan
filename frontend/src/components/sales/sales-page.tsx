@@ -38,6 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
+import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import { useDebtors } from "@/hooks/debtors/use-debtors"
 import { useCurrentUser } from "@/hooks/auth/use-current-user"
 import { useProducts } from "@/hooks/products/use-products"
@@ -47,10 +48,11 @@ import {
   useSales,
   useUpdateSale,
 } from "@/hooks/sales/use-sales"
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type { PaymentMethod, Sale, SaleStatus } from "@/services/sales.service"
 
-const pageSize = 20
+const pageSize = DEFAULT_PAGE_SIZE
 const statuses: Record<SaleStatus, string> = {
   PAID: "Pago",
   PENDING: "Pendente",
@@ -153,7 +155,16 @@ export function SalesPage() {
           </TableHeader>
           <TableBody>
             {sales.isLoading ? (
-              <LoadingRows />
+              <TableSkeletonRows
+                columns={[
+                  { className: "py-3 pl-5", variant: "avatar", width: "w-40" },
+                  { width: "w-10" },
+                  { width: "w-20" },
+                  { variant: "badge", width: "w-16" },
+                  { className: "hidden md:table-cell", width: "w-24" },
+                  { variant: "actions" },
+                ]}
+              />
             ) : (
               sales.data?.data.map((sale) => (
                 <SaleRow
@@ -290,6 +301,9 @@ function SaleDialog({
   ])
   const [error, setError] = useState<string | null>(null)
   const products = useProducts({ page: 1, limit: 100, status: "ACTIVE" })
+  const sellableProducts = products.data?.data.filter(
+    (product) => product.type !== "RAW_MATERIAL"
+  )
   const debtors = useDebtors({ page: 1, limit: 100, status: "ACTIVE" })
   const create = useCreateSale()
   const update = useUpdateSale()
@@ -494,7 +508,7 @@ function SaleDialog({
                     <Select
                       value={item.productId}
                       onValueChange={(value) => {
-                        const product = products.data?.data.find(
+                        const product = sellableProducts?.find(
                           (candidate) => candidate.id === value
                         )
                         updateItem(index, {
@@ -509,7 +523,7 @@ function SaleDialog({
                         <span>{selectedProduct?.name || "Selecione o produto"}</span>
                       </SelectTrigger>
                       <SelectContent>
-                        {products.data?.data.map((product) => (
+                        {sellableProducts?.map((product) => (
                           <SelectItem key={product.id} value={product.id}>
                             {product.name}
                           </SelectItem>
@@ -662,19 +676,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <Label>{label}</Label>
       {children}
     </div>
-  )
-}
-function LoadingRows() {
-  return (
-    <>
-      {Array.from({ length: 4 }).map((_, index) => (
-        <TableRow key={index}>
-          <TableCell colSpan={5}>
-            <div className="h-8 animate-pulse rounded bg-muted" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </>
   )
 }
 function Pagination({

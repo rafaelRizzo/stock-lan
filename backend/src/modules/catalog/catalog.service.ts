@@ -1,5 +1,5 @@
-import argon2 from "argon2";
 import { Prisma } from "@prisma/client";
+import argon2 from "argon2";
 import { getOrSetLocal, invalidatePrefix } from "../../lib/cache.js";
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
@@ -38,11 +38,10 @@ async function audit(
     });
 }
 
-function resolveExpenseTemplateSchedule(effective: {
-    recurrence: string;
-    anchorDate?: Date | null;
-    status: string;
-}): { anchorDate: Date | null; nextDueDate: Date | null } {
+function resolveExpenseTemplateSchedule(effective: { recurrence: string; anchorDate?: Date | null; status: string }): {
+    anchorDate: Date | null;
+    nextDueDate: Date | null;
+} {
     if (effective.recurrence === "ONE_TIME") return { anchorDate: null, nextDueDate: null };
     if (!effective.anchorDate) throw new AppError(400, "anchorDate is required for recurring expense templates");
     if (effective.status !== "ACTIVE") return { anchorDate: effective.anchorDate, nextDueDate: null };
@@ -50,6 +49,13 @@ function resolveExpenseTemplateSchedule(effective: {
         anchorDate: effective.anchorDate,
         nextDueDate: computeNextDueDate(effective.anchorDate, effective.recurrence as RecurrenceKind, new Date()),
     };
+}
+
+function resolveProductPricing(effective: { type: string; priceSell?: number }): { priceSell: number | null } {
+    if (effective.type === "RAW_MATERIAL") return { priceSell: null };
+    if (effective.priceSell === undefined)
+        throw new AppError(400, "priceSell is required unless the product is a raw material");
+    return { priceSell: effective.priceSell };
 }
 
 export const catalogService = {
@@ -158,6 +164,15 @@ export const catalogService = {
                 }),
             };
         }
+        if (resource.delegate === "product") {
+            payload = {
+                ...data,
+                ...resolveProductPricing({
+                    type: (data.type as string) ?? "BOTH",
+                    priceSell: data.priceSell as number | undefined,
+                }),
+            };
+        }
         const item = await db[resource.delegate].create({ data: { ...payload, createdUserId: userId } });
         await audit(resource.delegate, item.id, "CREATE", userId, item);
         await invalidatePrefix(`catalog:${resource.delegate}:`);
@@ -177,6 +192,18 @@ export const catalogService = {
                     recurrence: (data.recurrence as string) ?? prev.recurrence,
                     anchorDate: (data.anchorDate as Date | undefined) ?? prev.anchorDate ?? undefined,
                     status: (data.status as string) ?? prev.status,
+                }),
+            };
+        }
+        if (resource.delegate === "product") {
+            const prev = previous as unknown as { type: string; priceSell: unknown };
+            payload = {
+                ...data,
+                ...resolveProductPricing({
+                    type: (data.type as string) ?? prev.type,
+                    priceSell:
+                        (data.priceSell as number | undefined) ??
+                        (prev.priceSell == null ? undefined : Number(prev.priceSell)),
                 }),
             };
         }

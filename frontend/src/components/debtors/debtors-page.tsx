@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PermanentDeleteDialog } from "@/components/shared/permanent-delete-dialog"
+import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,7 @@ import {
   useRestoreDebtor,
   useUpdateDebtor,
 } from "@/hooks/debtors/use-debtors"
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type {
   Debtor,
@@ -55,7 +57,7 @@ import type {
   PaginatedDebtors,
 } from "@/services/debtors.service"
 
-const pageSize = 20
+const pageSize = DEFAULT_PAGE_SIZE
 const statusLabels = {
   ACTIVE: "Ativos",
   INACTIVE: "Inativos",
@@ -130,7 +132,17 @@ export function DebtorsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {debtors.isLoading && <LoadingRows />}
+            {debtors.isLoading && (
+              <TableSkeletonRows
+                columns={[
+                  { className: "py-3 pl-5", variant: "avatar", width: "w-40" },
+                  { width: "w-28" },
+                  { variant: "badge", width: "w-16" },
+                  { className: "hidden md:table-cell", width: "w-24" },
+                  { variant: "actions" },
+                ]}
+              />
+            )}
             {!debtors.isLoading &&
               debtors.data?.data.map((debtor) => (
                 <DebtorRow
@@ -534,18 +546,5 @@ function Pagination({
         </Button>
       </div>
     </div>
-  )
-}
-function LoadingRows() {
-  return (
-    <>
-      {[0, 1, 2].map((row) => (
-        <TableRow key={row}>
-          <TableCell className="h-16" colSpan={5}>
-            <span className="block h-5 w-full animate-pulse rounded bg-muted" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </>
   )
 }

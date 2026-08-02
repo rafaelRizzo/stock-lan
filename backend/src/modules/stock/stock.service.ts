@@ -165,7 +165,12 @@ export const stockService = {
         getOrSetLocal(`stock:movements:${skip}:${take}`, 15, async () => {
             const [data, total] = await Promise.all([
                 prisma.stockMovement.findMany({
-                    include: { product: true, stockBatch: true, sale: true },
+                    include: {
+                        product: true,
+                        stockBatch: true,
+                        sale: true,
+                        productionOrder: { include: { finishedProduct: true } },
+                    },
                     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
                     skip,
                     take,

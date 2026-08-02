@@ -27,6 +27,14 @@ export function useStockAlerts(params: { page: number; limit: number }) {
   })
 }
 
+export function useProductStock(productId: string | undefined) {
+  return useQuery({
+    queryKey: ["stock", "product", productId],
+    queryFn: () => stockService.getProductStock(productId as string),
+    enabled: Boolean(productId),
+  })
+}
+
 export function useCreateStockBatch() {
   const queryClient = useQueryClient()
   return useMutation({

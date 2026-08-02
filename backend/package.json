@@ -9,6 +9,8 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit",
+    "build": "rm -rf dist && bun build src/server.ts --outdir dist --target bun --minify --sourcemap=linked --external @prisma/client --external argon2",
+    "start:dist": "bun dist/server.js",
     "test": "bun test test/unit",
     "test:unit": "bun test test/unit",
     "test:coverage": "bun test --coverage",

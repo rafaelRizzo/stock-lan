@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import {
   Dialog,
   DialogContent,
@@ -35,11 +36,12 @@ import {
   useDebtReports,
   useRegisterDebtPayment,
 } from "@/hooks/reports/use-dashboard-summary"
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type { DebtReport } from "@/services/reports.service"
 import type { PaymentMethod } from "@/services/sales.service"
 
-const pageSize = 20
+const pageSize = DEFAULT_PAGE_SIZE
 
 const paymentMethods: Record<PaymentMethod, string> = {
   CASH: "Dinheiro",
@@ -97,7 +99,22 @@ export function DebtReportsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {debts.isLoading && <LoadingRows />}
+            {debts.isLoading && (
+              <TableSkeletonRows
+                columns={[
+                  { className: "py-3 pl-5", variant: "text", width: "w-40" },
+                  { className: "hidden md:table-cell", width: "w-24" },
+                  { align: "right", width: "w-20" },
+                  {
+                    className: "hidden sm:table-cell",
+                    align: "right",
+                    width: "w-20",
+                  },
+                  { align: "right", width: "w-20" },
+                  { variant: "button", width: "w-24" },
+                ]}
+              />
+            )}
             {!debts.isLoading &&
               debts.data?.data.map((debt) => (
                 <DebtRow
@@ -309,16 +326,6 @@ function ReceivePaymentDialog({
       </DialogContent>
     </Dialog>
   )
-}
-
-function LoadingRows() {
-  return Array.from({ length: 5 }).map((_, index) => (
-    <TableRow key={index}>
-      <TableCell colSpan={6}>
-        <span className="block h-4 animate-pulse rounded bg-muted" />
-      </TableCell>
-    </TableRow>
-  ))
 }
 
 function paidOf(debt: DebtReport) {

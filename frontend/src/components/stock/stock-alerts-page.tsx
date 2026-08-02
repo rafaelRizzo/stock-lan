@@ -16,10 +16,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import { useStockAlerts } from "@/hooks/stock/use-stock-batches"
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import type { StockAlertBatch } from "@/services/stock.service"
 
-const pageSize = 20
+const pageSize = DEFAULT_PAGE_SIZE
 
 export function StockAlertsPage() {
   const [page, setPage] = useState(1)
@@ -51,7 +53,15 @@ export function StockAlertsPage() {
           </TableHeader>
           <TableBody>
             {alerts.isLoading ? (
-              <LoadingRows />
+              <TableSkeletonRows
+                columns={[
+                  { className: "py-3 pl-5", variant: "avatar", width: "w-40" },
+                  { width: "w-24" },
+                  { width: "w-16" },
+                  { width: "w-16" },
+                  { variant: "badge", width: "w-24" },
+                ]}
+              />
             ) : (
               alerts.data?.data.map((batch) => (
                 <AlertRow batch={batch} key={batch.id} />
@@ -109,20 +119,6 @@ function AlertRow({ batch }: { batch: StockAlertBatch }) {
         </Badge>
       </TableCell>
     </TableRow>
-  )
-}
-
-function LoadingRows() {
-  return (
-    <>
-      {Array.from({ length: 5 }).map((_, index) => (
-        <TableRow key={index}>
-          <TableCell colSpan={5}>
-            <div className="h-8 animate-pulse rounded bg-muted" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </>
   )
 }
 

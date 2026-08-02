@@ -19,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PermanentDeleteDialog } from "@/components/shared/permanent-delete-dialog"
+import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import {
   Dialog,
   DialogContent,
@@ -52,10 +53,11 @@ import {
   useUpdateProduct,
 } from "@/hooks/products/use-products"
 import { useCurrentUser } from "@/hooks/auth/use-current-user"
+import { DEFAULT_PAGE_SIZE, PRODUCT_TYPE_LABELS } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
-import type { Product, ProductStatus } from "@/services/products.service"
+import type { Product, ProductStatus, ProductType } from "@/services/products.service"
 
-const pageSize = 5
+const pageSize = DEFAULT_PAGE_SIZE
 const statusLabels = {
   ACTIVE: "Ativos",
   INACTIVE: "Inativos",
@@ -168,7 +170,18 @@ export function ProductsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.isLoading && <LoadingRows />}
+            {products.isLoading && (
+              <TableSkeletonRows
+                columns={[
+                  { className: "py-3 pl-5", variant: "avatar", width: "w-40" },
+                  { width: "w-20" },
+                  { width: "w-16" },
+                  { variant: "badge", width: "w-16" },
+                  { className: "hidden md:table-cell", width: "w-24" },
+                  { variant: "actions" },
+                ]}
+              />
+            )}
             {!products.isLoading &&
               products.data?.data.map((product) => (
                 <ProductRow
@@ -278,6 +291,29 @@ function StatusSelect({
     </Select>
   )
 }
+function ProductTypeSelect({
+  onChange,
+  value,
+}: {
+  onChange: (value: ProductType) => void
+  value: ProductType
+}) {
+  return (
+    <label className="grid gap-2 text-sm font-medium">
+      Tipo
+      <Select onValueChange={(next) => onChange(next as ProductType)} value={value}>
+        <SelectTrigger className="h-10! w-full rounded-xl! border-[#dce3de]! bg-background! shadow-none dark:border-border!">
+          <span>{PRODUCT_TYPE_LABELS[value]}</span>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="BOTH">{PRODUCT_TYPE_LABELS.BOTH}</SelectItem>
+          <SelectItem value="FINISHED">{PRODUCT_TYPE_LABELS.FINISHED}</SelectItem>
+          <SelectItem value="RAW_MATERIAL">{PRODUCT_TYPE_LABELS.RAW_MATERIAL}</SelectItem>
+        </SelectContent>
+      </Select>
+    </label>
+  )
+}
 function ProductRow({
   canArchive,
   canEdit,
@@ -306,6 +342,11 @@ function ProductRow({
           </span>
           <div>
             <p className="font-medium">{product.name}</p>
+            {product.type !== "BOTH" && (
+              <p className="text-xs text-muted-foreground">
+                {PRODUCT_TYPE_LABELS[product.type]}
+              </p>
+            )}
             {product.obs && (
               <p className="max-w-64 truncate text-xs text-muted-foreground">
                 {product.obs}
@@ -315,7 +356,11 @@ function ProductRow({
         </div>
       </TableCell>
       <TableCell className="font-medium">
-        {formatCurrency(product.priceSell)}
+        {product.priceSell === null ? (
+          <span className="text-muted-foreground">-</span>
+        ) : (
+          formatCurrency(product.priceSell)
+        )}
       </TableCell>
       <TableCell className="font-medium">
         {formatQuantity(product.stockQuantity ?? 0)}
@@ -398,25 +443,28 @@ function CreateProductDialog({
 }) {
   const [name, setName] = useState("")
   const [price, setPrice] = useState("")
+  const [type, setType] = useState<ProductType>("BOTH")
   const [obs, setObs] = useState("")
   const [error, setError] = useState<string | null>(null)
   const create = useCreateProduct()
+  const isRawMaterial = type === "RAW_MATERIAL"
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const priceSell = Number(price.replace(",", "."))
-    if (!name.trim() || !price)
-      return setError("Preencha nome e preço de venda.")
-    if (!Number.isFinite(priceSell) || priceSell <= 0)
+    if (!name.trim()) return setError("Preencha o nome do produto.")
+    if (!isRawMaterial && (!price || !Number.isFinite(priceSell) || priceSell <= 0))
       return setError("Informe um preço de venda válido.")
     setError(null)
     try {
       await create.mutateAsync({
         name: name.trim(),
-        priceSell,
+        priceSell: isRawMaterial ? undefined : priceSell,
+        type,
         obs: obs.trim() || undefined,
       })
       setName("")
       setPrice("")
+      setType("BOTH")
       setObs("")
       onOpenChange(false)
     } catch (reason) {
@@ -439,13 +487,22 @@ function CreateProductDialog({
             placeholder="Nome do produto"
             value={name}
           />
-          <ProductInput
-            label="Preço de venda"
-            onChange={setPrice}
-            placeholder="Ex.: 49,90"
-            price
-            value={price}
-          />
+          <ProductTypeSelect onChange={setType} value={type} />
+          {!isRawMaterial && (
+            <ProductInput
+              label="Preço de venda"
+              onChange={setPrice}
+              placeholder="Ex.: 49,90"
+              price
+              value={price}
+            />
+          )}
+          {isRawMaterial && (
+            <p className="text-sm text-muted-foreground">
+              Insumos não têm preço de venda: eles são consumidos na produção
+              de outros produtos.
+            </p>
+          )}
           <label className="grid gap-2 text-sm font-medium">
             Observação
             <Textarea
@@ -517,13 +574,20 @@ function EditProductDialog({
 }) {
   const [name, setName] = useState("")
   const [price, setPrice] = useState("")
+  const [type, setType] = useState<ProductType>("BOTH")
   const [obs, setObs] = useState("")
   const [error, setError] = useState<string | null>(null)
   const update = useUpdateProduct()
+  const isRawMaterial = type === "RAW_MATERIAL"
   useEffect(() => {
     if (product) {
       setName(product.name)
-      setPrice(String(product.priceSell).replace(".", ","))
+      setPrice(
+        product.priceSell === null
+          ? ""
+          : String(product.priceSell).replace(".", ",")
+      )
+      setType(product.type)
       setObs(product.obs ?? "")
       setError(null)
     }
@@ -531,18 +595,20 @@ function EditProductDialog({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const priceSell = Number(price.replace(",", "."))
-    if (
-      !product ||
-      !name.trim() ||
-      !Number.isFinite(priceSell) ||
-      priceSell <= 0
-    )
-      return setError("Informe nome e preço de venda válidos.")
+    if (!product || !name.trim())
+      return setError("Informe o nome do produto.")
+    if (!isRawMaterial && (!price || !Number.isFinite(priceSell) || priceSell <= 0))
+      return setError("Informe um preço de venda válido.")
     setError(null)
     try {
       await update.mutateAsync({
         id: product.id,
-        input: { name: name.trim(), priceSell, obs: obs.trim() || undefined },
+        input: {
+          name: name.trim(),
+          priceSell: isRawMaterial ? undefined : priceSell,
+          type,
+          obs: obs.trim() || undefined,
+        },
       })
       onClose()
     } catch (reason) {
@@ -565,13 +631,22 @@ function EditProductDialog({
             placeholder="Nome do produto"
             value={name}
           />
-          <ProductInput
-            label="Preço de venda"
-            onChange={setPrice}
-            placeholder="Ex.: 49,90"
-            price
-            value={price}
-          />
+          <ProductTypeSelect onChange={setType} value={type} />
+          {!isRawMaterial && (
+            <ProductInput
+              label="Preço de venda"
+              onChange={setPrice}
+              placeholder="Ex.: 49,90"
+              price
+              value={price}
+            />
+          )}
+          {isRawMaterial && (
+            <p className="text-sm text-muted-foreground">
+              Insumos não têm preço de venda: eles são consumidos na produção
+              de outros produtos.
+            </p>
+          )}
           <label className="grid gap-2 text-sm font-medium">
             Observação
             <Textarea
@@ -631,19 +706,6 @@ function ArchiveProductDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-}
-function LoadingRows() {
-  return (
-    <>
-      {[0, 1, 2].map((row) => (
-        <TableRow key={row}>
-          <TableCell className="h-16" colSpan={6}>
-            <span className="block h-5 w-full animate-pulse rounded bg-muted" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </>
   )
 }
 function formatCurrency(value: string | number) {

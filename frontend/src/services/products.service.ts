@@ -1,10 +1,12 @@
 import { http } from "@/lib/http"
 
 export type ProductStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED"
+export type ProductType = "RAW_MATERIAL" | "FINISHED" | "BOTH"
 export type Product = {
   id: string
   name: string
-  priceSell: string | number
+  priceSell: string | number | null
+  type: ProductType
   obs: string | null
   status: ProductStatus
   createdAt: string
@@ -27,7 +29,8 @@ export type ProductsParams = {
 }
 export type CreateProductInput = {
   name: string
-  priceSell: number
+  priceSell?: number
+  type?: ProductType
   obs?: string
 }
 

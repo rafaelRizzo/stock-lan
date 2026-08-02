@@ -18,10 +18,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import { useStockMovements } from "@/hooks/stock/use-stock-batches"
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import type { StockMovement, StockMovementType } from "@/services/stock.service"
 
-const pageSize = 20
+const pageSize = DEFAULT_PAGE_SIZE
 const labels: Record<StockMovementType, string> = {
   IN: "Entrada",
   OUT: "Saída",
@@ -58,7 +60,15 @@ export function StockMovementsPage() {
           </TableHeader>
           <TableBody>
             {movements.isLoading ? (
-              <LoadingRows />
+              <TableSkeletonRows
+                columns={[
+                  { className: "py-3 pl-5", variant: "avatar", width: "w-24" },
+                  { width: "w-32" },
+                  { width: "w-16" },
+                  { className: "hidden md:table-cell", width: "w-32" },
+                  { className: "hidden md:table-cell", width: "w-28" },
+                ]}
+              />
             ) : (
               movements.data?.data.map((movement) => (
                 <MovementRow key={movement.id} movement={movement} />
@@ -137,25 +147,17 @@ function MovementRow({ movement }: { movement: StockMovement }) {
         {number(movement.quantity)}
       </TableCell>
       <TableCell className="hidden text-muted-foreground md:table-cell">
-        {movement.sale?.clientName || movement.obs || "Lote de estoque"}
+        {movement.sale?.clientName ||
+          (movement.productionOrder
+            ? `Produção · ${movement.productionOrder.finishedProduct?.name ?? ""}`
+            : "") ||
+          movement.obs ||
+          "Lote de estoque"}
       </TableCell>
       <TableCell className="hidden text-muted-foreground md:table-cell">
         {date(movement.createdAt)}
       </TableCell>
     </TableRow>
-  )
-}
-function LoadingRows() {
-  return (
-    <>
-      {Array.from({ length: 5 }).map((_, index) => (
-        <TableRow key={index}>
-          <TableCell colSpan={5}>
-            <div className="h-8 animate-pulse rounded bg-muted" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </>
   )
 }
 function Pagination({

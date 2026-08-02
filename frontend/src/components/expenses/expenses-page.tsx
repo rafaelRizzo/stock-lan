@@ -16,6 +16,7 @@ import { ptBR } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
+import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import {
   Dialog,
   DialogContent,
@@ -54,6 +55,7 @@ import {
   useExpenses,
   useUpdateExpense,
 } from "@/hooks/expenses/use-expenses"
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type {
   Expense,
@@ -61,7 +63,7 @@ import type {
   ExpenseStatus,
 } from "@/services/expenses.service"
 
-const pageSize = 20
+const pageSize = DEFAULT_PAGE_SIZE
 const statuses: Record<ExpenseStatus, string> = {
   PENDING: "Pendente",
   PAID: "Paga",
@@ -156,7 +158,15 @@ export function ExpensesPage() {
           </TableHeader>
           <TableBody>
             {expenses.isLoading ? (
-              <LoadingRows />
+              <TableSkeletonRows
+                columns={[
+                  { className: "py-3 pl-5", variant: "avatar", width: "w-40" },
+                  { width: "w-24" },
+                  { width: "w-20" },
+                  { variant: "badge", width: "w-16" },
+                  { variant: "actions" },
+                ]}
+              />
             ) : (
               expenses.data?.data.map((expense) => (
                 <ExpenseRow
@@ -585,19 +595,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <Label>{label}</Label>
       {children}
     </div>
-  )
-}
-function LoadingRows() {
-  return (
-    <>
-      {Array.from({ length: 4 }).map((_, index) => (
-        <TableRow key={index}>
-          <TableCell colSpan={5}>
-            <div className="h-8 animate-pulse rounded bg-muted" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </>
   )
 }
 function Pagination({

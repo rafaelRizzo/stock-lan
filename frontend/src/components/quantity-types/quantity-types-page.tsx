@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PermanentDeleteDialog } from "@/components/shared/permanent-delete-dialog"
+import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import {
   Dialog,
   DialogContent,
@@ -47,13 +48,14 @@ import {
   useRestoreQuantityType,
   useUpdateQuantityType,
 } from "@/hooks/quantity-types/use-quantity-types"
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type {
   QuantityType,
   QuantityTypeStatus,
 } from "@/services/quantity-types.service"
 
-const pageSize = 20
+const pageSize = DEFAULT_PAGE_SIZE
 const statusLabels = {
   ACTIVE: "Ativos",
   INACTIVE: "Inativos",
@@ -136,7 +138,16 @@ export function QuantityTypesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {types.isLoading && <LoadingRows />}
+            {types.isLoading && (
+              <TableSkeletonRows
+                columns={[
+                  { className: "py-3 pl-5", variant: "avatar", width: "w-40" },
+                  { variant: "badge", width: "w-16" },
+                  { className: "hidden md:table-cell", width: "w-24" },
+                  { variant: "actions" },
+                ]}
+              />
+            )}
             {!types.isLoading &&
               types.data?.data.map((type) => (
                 <TypeRow
@@ -496,18 +507,5 @@ function ArchiveTypeDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-}
-function LoadingRows() {
-  return (
-    <>
-      {[0, 1, 2].map((row) => (
-        <TableRow key={row}>
-          <TableCell className="h-16" colSpan={4}>
-            <span className="block h-5 w-full animate-pulse rounded bg-muted" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </>
   )
 }

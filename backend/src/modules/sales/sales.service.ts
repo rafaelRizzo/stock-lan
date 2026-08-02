@@ -13,14 +13,22 @@ type Allocation = {
     costUnit: Prisma.Decimal;
 };
 
+function resolveSalePrice(product: { name: string; priceSell: Prisma.Decimal | null }, priceUnit?: number) {
+    if (priceUnit) return decimal(priceUnit);
+    if (!product.priceSell) throw new AppError(409, `${product.name} has no default sale price defined`);
+    return product.priceSell;
+}
+
 async function allocateItems(tx: Prisma.TransactionClient, input: SaleInput) {
     const allocations: Allocation[] = [];
     let total = new Prisma.Decimal(0);
     for (const item of input.items) {
         const product = await tx.product.findFirst({ where: { id: item.productId, status: "ACTIVE" } });
         if (!product) throw new AppError(404, "Product not found");
+        if (product.type === "RAW_MATERIAL")
+            throw new AppError(409, `${product.name} is a raw material and cannot be sold directly`);
         let remaining = decimal(item.quantity);
-        const priceUnit = item.priceUnit ? decimal(item.priceUnit) : product.priceSell;
+        const priceUnit = resolveSalePrice(product, item.priceUnit);
         const batches = await tx.stockBatch.findMany({
             where: { productId: product.id, status: "ACTIVE", quantityLeft: { gt: 0 } },
             orderBy: [{ dateBuy: "asc" }, { id: "asc" }],

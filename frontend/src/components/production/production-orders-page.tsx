@@ -1,14 +1,14 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import {
+  Ban,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Factory,
   LoaderCircle,
-  PackagePlus,
   Pencil,
   Plus,
   Search,
-  Trash2,
 } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -37,7 +37,6 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import {
   Table,
   TableBody,
@@ -47,64 +46,72 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
+import { useCurrentUser } from "@/hooks/auth/use-current-user"
 import { useProducts } from "@/hooks/products/use-products"
 import { useQuantityTypes } from "@/hooks/quantity-types/use-quantity-types"
-import { useCurrentUser } from "@/hooks/auth/use-current-user"
+import { useRecipe } from "@/hooks/production/use-recipes"
 import {
-  useCreateStockBatch,
-  useDeleteStockBatch,
-  useStockBatches,
-  useUpdateStockBatch,
-} from "@/hooks/stock/use-stock-batches"
-import { useSuppliers } from "@/hooks/suppliers/use-suppliers"
+  useCancelProductionOrder,
+  useCreateProductionOrder,
+  useProductionOrders,
+  useUpdateProductionOrder,
+} from "@/hooks/production/use-production-orders"
+import { useProductStock } from "@/hooks/stock/use-stock-batches"
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
-import type { BatchStatus, StockBatch } from "@/services/stock.service"
+import type {
+  ProductionOrder,
+  ProductionOrderStatus,
+} from "@/services/production.service"
 
 const pageSize = DEFAULT_PAGE_SIZE
 const selectClass =
   "h-10! w-full rounded-xl! border-[#dce3de]! bg-input/50! px-2.5! py-1! text-sm shadow-none data-[size=default]:h-10! dark:border-border!"
-const statusLabels: Record<BatchStatus, string> = {
-  ACTIVE: "Ativo",
-  INACTIVE: "Inativo",
-  ARCHIVED: "Arquivado",
+const statusLabels: Record<ProductionOrderStatus, string> = {
+  ACTIVE: "Ativa",
+  INACTIVE: "Inativa",
+  ARCHIVED: "Cancelada",
 }
 
-export function StockBatchesPage() {
+export function ProductionOrdersPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
-  const [status, setStatus] = useState<BatchStatus | "">("")
+  const [status, setStatus] = useState<ProductionOrderStatus | "">("")
   const [open, setOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState<StockBatch | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<StockBatch | null>(null)
-  const batches = useStockBatches({
+  const [editTarget, setEditTarget] = useState<ProductionOrder | null>(null)
+  const [cancelTarget, setCancelTarget] = useState<ProductionOrder | null>(null)
+  const orders = useProductionOrders({
     page,
     limit: pageSize,
     search: search || undefined,
     status: status || undefined,
   })
   const { data: user } = useCurrentUser()
-  const canManage = user?.role === "ADMIN" || user?.role === "MANAGER"
+  const canManage = ["ADMIN", "MANAGER", "OPERATOR"].includes(user?.role ?? "")
+  const canCancel = user?.role === "ADMIN" || user?.role === "MANAGER"
+
   return (
     <div className="mx-auto w-full max-w-7xl">
       <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <PackagePlus className="size-4" /> Operação
+            <Factory className="size-4" /> Produção
           </p>
           <h2 className="mt-2 text-3xl font-semibold tracking-[-0.045em]">
-            Entradas
+            Ordens de produção
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Registre compras e acompanhe os lotes recebidos.
+            Converta insumos em produtos finais com base na receita cadastrada.
           </p>
         </div>
-        <Button
-          className="h-10 rounded-xl bg-[#173f31] text-white hover:bg-[#245742]"
-          onClick={() => setOpen(true)}
-        >
-          <Plus className="size-4" /> Nova entrada
-        </Button>
+        {canManage && (
+          <Button
+            className="h-10 rounded-xl bg-[#173f31] text-white hover:bg-[#245742]"
+            onClick={() => setOpen(true)}
+          >
+            <Plus className="size-4" /> Nova ordem
+          </Button>
+        )}
       </div>
       <section className="rounded-2xl border border-[#e5e9e4] bg-background dark:border-border">
         <div className="flex flex-col gap-3 border-b border-[#e5e9e4] p-4 sm:flex-row sm:items-center dark:border-border">
@@ -112,7 +119,7 @@ export function StockBatchesPage() {
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="h-10 rounded-xl pl-9 shadow-none"
-              placeholder="Buscar produto ou fornecedor"
+              placeholder="Buscar produto final"
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value)
@@ -123,7 +130,7 @@ export function StockBatchesPage() {
           <Select
             value={status || "ALL"}
             onValueChange={(value) => {
-              setStatus(value === "ALL" ? "" : (value as BatchStatus))
+              setStatus(value === "ALL" ? "" : (value as ProductionOrderStatus))
               setPage(1)
             }}
           >
@@ -132,86 +139,84 @@ export function StockBatchesPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todos os status</SelectItem>
-              {Object.entries(statusLabels).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
+              <SelectItem value="ACTIVE">Ativa</SelectItem>
+              <SelectItem value="ARCHIVED">Cancelada</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="pl-5">Produto</TableHead>
-              <TableHead>Fornecedor</TableHead>
-              <TableHead>Entrada</TableHead>
-              <TableHead>Restante</TableHead>
+              <TableHead className="pl-5">Produto final</TableHead>
+              <TableHead>Quantidade produzida</TableHead>
+              <TableHead>Custo unitário</TableHead>
               <TableHead className="hidden md:table-cell">Data</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-20" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {batches.isLoading ? (
+            {orders.isLoading ? (
               <TableSkeletonRows
                 columns={[
                   { className: "py-3 pl-5", variant: "avatar", width: "w-40" },
                   { width: "w-24" },
-                  { width: "w-16" },
-                  { width: "w-16" },
+                  { width: "w-20" },
                   { className: "hidden md:table-cell", width: "w-24" },
                   { variant: "badge", width: "w-16" },
                   { variant: "actions" },
                 ]}
               />
             ) : (
-              batches.data?.data.map((batch) => (
-                <BatchRow
-                  batch={batch}
+              orders.data?.data.map((order) => (
+                <OrderRow
+                  canCancel={canCancel}
                   canManage={canManage}
-                  key={batch.id}
-                  onDelete={setDeleteTarget}
+                  key={order.id}
+                  onCancel={setCancelTarget}
                   onEdit={setEditTarget}
+                  order={order}
                 />
               ))
             )}
-            {!batches.isLoading && batches.data?.data.length === 0 && (
+            {!orders.isLoading && orders.data?.data.length === 0 && (
               <TableRow>
                 <TableCell
                   className="h-52 text-center text-muted-foreground"
-                  colSpan={7}
+                  colSpan={6}
                 >
-                  Nenhuma entrada encontrada.
+                  Nenhuma ordem de produção encontrada.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-        <Pagination data={batches.data} page={page} setPage={setPage} />
+        <Pagination data={orders.data} page={page} setPage={setPage} />
       </section>
-      <EntryDialog onClose={() => setOpen(false)} open={open} />
-      <EntryDialog batch={editTarget} onClose={() => setEditTarget(null)} />
-      <DeleteEntryDialog
-        batch={deleteTarget}
-        onClose={() => setDeleteTarget(null)}
+      <OrderDialog onClose={() => setOpen(false)} open={open} />
+      <OrderDialog onClose={() => setEditTarget(null)} order={editTarget} />
+      <CancelOrderDialog
+        onClose={() => setCancelTarget(null)}
+        order={cancelTarget}
       />
     </div>
   )
 }
 
-function BatchRow({
-  batch,
+function OrderRow({
+  order,
   canManage,
-  onDelete,
+  canCancel,
   onEdit,
+  onCancel,
 }: {
-  batch: StockBatch
+  order: ProductionOrder
   canManage: boolean
-  onDelete: (batch: StockBatch) => void
-  onEdit: (batch: StockBatch) => void
+  canCancel: boolean
+  onEdit: (order: ProductionOrder) => void
+  onCancel: (order: ProductionOrder) => void
 }) {
-  const styles: Record<BatchStatus, string> = {
+  const styles: Record<ProductionOrderStatus, string> = {
     ACTIVE:
       "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
     INACTIVE:
@@ -223,152 +228,118 @@ function BatchRow({
       <TableCell className="py-3 pl-5">
         <div className="flex items-center gap-3">
           <span className="grid size-8 place-items-center rounded-lg bg-muted text-muted-foreground dark:bg-zinc-800 dark:text-zinc-300">
-            <PackagePlus className="size-4" />
+            <Factory className="size-4" />
           </span>
-          <div>
-            <p className="font-medium">{batch.product.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {currency(batch.priceBuy)} por unidade
-            </p>
-          </div>
+          <p className="font-medium">{order.finishedProduct.name}</p>
         </div>
       </TableCell>
-      <TableCell className="text-muted-foreground">
-        {batch.supplier.name}
-      </TableCell>
       <TableCell>
-        {number(batch.quantityIn)} {batch.quantityType.name}
+        {number(order.quantityProduced)} {order.quantityType.name}
       </TableCell>
-      <TableCell className="font-medium">
-        {number(batch.quantityLeft)} {batch.quantityType.name}
+      <TableCell className="text-muted-foreground">
+        {currency(order.costUnit)}
       </TableCell>
       <TableCell className="hidden text-muted-foreground md:table-cell">
-        {date(batch.dateBuy)}
+        {date(order.dateProduced)}
       </TableCell>
       <TableCell>
-        <Badge className={styles[batch.status]}>
-          {statusLabels[batch.status]}
+        <Badge className={styles[order.status]}>
+          {statusLabels[order.status]}
         </Badge>
       </TableCell>
       <TableCell>
-        {canManage && (
-          <>
-            <Button
-              aria-label={`Editar ${batch.product.name}`}
-              className="text-muted-foreground hover:text-foreground"
-              onClick={() => onEdit(batch)}
-              size="icon-sm"
-              variant="ghost"
-            >
-              <Pencil className="size-4" />
-            </Button>
-            <Button
-              aria-label={`Excluir ${batch.product.name}`}
-              className="text-muted-foreground hover:text-destructive"
-              onClick={() => onDelete(batch)}
-              size="icon-sm"
-              variant="ghost"
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          </>
+        {order.status === "ACTIVE" && canManage && (
+          <Button
+            aria-label={`Editar ordem de ${order.finishedProduct.name}`}
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => onEdit(order)}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <Pencil className="size-4" />
+          </Button>
+        )}
+        {order.status === "ACTIVE" && canCancel && (
+          <Button
+            aria-label={`Cancelar ordem de ${order.finishedProduct.name}`}
+            className="text-muted-foreground hover:text-destructive"
+            onClick={() => onCancel(order)}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <Ban className="size-4" />
+          </Button>
         )}
       </TableCell>
     </TableRow>
   )
 }
 
-function EntryDialog({
-  batch,
+function OrderDialog({
+  order,
   open,
   onClose,
 }: {
-  batch?: StockBatch | null
+  order?: ProductionOrder | null
   open?: boolean
   onClose: () => void
 }) {
-  const [productId, setProductId] = useState("")
-  const [supplierId, setSupplierId] = useState("")
+  const [finishedProductId, setFinishedProductId] = useState("")
   const [quantityTypeId, setQuantityTypeId] = useState("")
-  const [quantityIn, setQuantityIn] = useState("")
-  const [priceBuy, setPriceBuy] = useState("")
-  const [dateBuy, setDateBuy] = useState(new Date().toISOString().slice(0, 10))
-  const [notifyLimit, setNotifyLimit] = useState(false)
-  const [quantityNotify, setQuantityNotify] = useState("")
+  const [quantityProduced, setQuantityProduced] = useState("")
+  const [dateProduced, setDateProduced] = useState(
+    new Date().toISOString().slice(0, 10)
+  )
   const [obs, setObs] = useState("")
   const [error, setError] = useState<string | null>(null)
   const products = useProducts({ page: 1, limit: 100, status: "ACTIVE" })
-  const suppliers = useSuppliers({ page: 1, limit: 100, status: "ACTIVE" })
   const quantityTypes = useQuantityTypes({
     page: 1,
     limit: 100,
     status: "ACTIVE",
   })
-  const create = useCreateStockBatch()
-  const update = useUpdateStockBatch()
-  const editing = Boolean(batch)
+  const recipe = useRecipe(finishedProductId || undefined)
+  const create = useCreateProductionOrder()
+  const update = useUpdateProductionOrder()
+  const editing = Boolean(order)
   const visible = open ?? editing
+  const finishedProducts = products.data?.data.filter(
+    (product) => product.type !== "RAW_MATERIAL"
+  )
   const reset = () => {
-    setProductId("")
-    setSupplierId("")
+    setFinishedProductId("")
     setQuantityTypeId("")
-    setQuantityIn("")
-    setPriceBuy("")
-    setDateBuy(new Date().toISOString().slice(0, 10))
-    setNotifyLimit(false)
-    setQuantityNotify("")
+    setQuantityProduced("")
+    setDateProduced(new Date().toISOString().slice(0, 10))
     setObs("")
     setError(null)
   }
   useEffect(() => {
-    if (batch) {
-      setProductId(batch.product.id)
-      setSupplierId(batch.supplier.id)
-      setQuantityTypeId(batch.quantityType.id)
-      setQuantityIn(String(batch.quantityIn).replace(".", ","))
-      setPriceBuy(String(batch.priceBuy).replace(".", ","))
-      setDateBuy(batch.dateBuy.slice(0, 10))
-      setNotifyLimit(batch.notifyLimit)
-      setQuantityNotify(
-        batch.quantityNotify === null
-          ? ""
-          : String(batch.quantityNotify).replace(".", ",")
-      )
-      setObs(batch.obs ?? "")
+    if (order) {
+      setFinishedProductId(order.finishedProductId)
+      setQuantityTypeId(order.quantityTypeId)
+      setQuantityProduced(String(order.quantityProduced).replace(".", ","))
+      setDateProduced(order.dateProduced.slice(0, 10))
+      setObs(order.obs ?? "")
     } else if (open) reset()
     setError(null)
-  }, [batch, open])
+  }, [order, open])
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const quantity = Number(quantityIn.replace(",", "."))
-    const price = Number(priceBuy.replace(",", "."))
-    const notifyQuantity = Number(quantityNotify.replace(",", "."))
-    if (
-      !productId ||
-      !supplierId ||
-      !quantityTypeId ||
-      quantity <= 0 ||
-      price <= 0 ||
-      !dateBuy
-    )
+    const quantity = Number(quantityProduced.replace(",", "."))
+    if (!finishedProductId || !quantityTypeId || quantity <= 0 || !dateProduced)
       return setError(
-        "Preencha produto, fornecedor, unidade, quantidade, custo e data."
+        "Preencha produto final, unidade, quantidade e data de produção."
       )
-    if (notifyLimit && notifyQuantity <= 0)
-      return setError("Informe a quantidade mínima para o alerta.")
     try {
       const input = {
-        productId,
-        supplierId,
+        finishedProductId,
         quantityTypeId,
-        quantityIn: quantity,
-        priceBuy: price,
-        dateBuy: new Date(`${dateBuy}T12:00:00`),
-        notifyLimit,
-        quantityNotify: notifyLimit ? notifyQuantity : undefined,
+        quantityProduced: quantity,
+        dateProduced: new Date(`${dateProduced}T12:00:00`),
         obs: obs.trim() || undefined,
       }
-      if (batch) await update.mutateAsync({ id: batch.id, input })
+      if (order) await update.mutateAsync({ id: order.id, input })
       else await create.mutateAsync(input)
       reset()
       onClose()
@@ -378,39 +349,40 @@ function EntryDialog({
   }
   return (
     <Dialog
-      open={visible}
       onOpenChange={(value) => {
         if (!value) {
           reset()
           onClose()
         }
       }}
+      open={visible}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            {editing ? "Editar entrada" : "Nova entrada"}
+            {editing ? "Editar ordem de produção" : "Nova ordem de produção"}
           </DialogTitle>
           <DialogDescription>
             {editing
-              ? "Atualize os dados do lote."
-              : "Adicione um lote ao estoque disponível."}
+              ? "Recalcula o consumo de insumos com base na nova quantidade."
+              : "Consome os insumos da receita e gera um lote do produto final."}
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
-          <Field label="Produto">
+          <Field label="Produto final">
             <Select
-              value={productId}
-              onValueChange={(value) => setProductId(value ?? "")}
+              onValueChange={(value) => setFinishedProductId(value ?? "")}
+              value={finishedProductId}
             >
               <SelectTrigger className={selectClass}>
                 <span>
-                  {products.data?.data.find((item) => item.id === productId)
-                    ?.name || "Selecione o produto"}
+                  {finishedProducts?.find(
+                    (item) => item.id === finishedProductId
+                  )?.name || "Selecione o produto final"}
                 </span>
               </SelectTrigger>
               <SelectContent>
-                {products.data?.data.map((item) => (
+                {finishedProducts?.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
                     {item.name}
                   </SelectItem>
@@ -419,30 +391,25 @@ function EntryDialog({
             </Select>
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Fornecedor">
-              <Select
-                value={supplierId}
-                onValueChange={(value) => setSupplierId(value ?? "")}
-              >
-                <SelectTrigger className={selectClass}>
-                  <span>
-                    {suppliers.data?.data.find((item) => item.id === supplierId)
-                      ?.name || "Selecione"}
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers.data?.data.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <Field label="Quantidade produzida">
+              <Input
+                className="h-10 rounded-xl"
+                inputMode="decimal"
+                onChange={(event) =>
+                  setQuantityProduced(
+                    event.target.value
+                      .replace(/[^0-9,]/g, "")
+                      .replace(/(,.*),/g, "$1")
+                  )
+                }
+                placeholder="0"
+                value={quantityProduced}
+              />
             </Field>
-            <Field label="Unidade">
+            <Field label="Unidade do lote gerado">
               <Select
-                value={quantityTypeId}
                 onValueChange={(value) => setQuantityTypeId(value ?? "")}
+                value={quantityTypeId}
               >
                 <SelectTrigger className={selectClass}>
                   <span>
@@ -460,37 +427,7 @@ function EntryDialog({
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Quantidade">
-              <Input
-                className="h-10 rounded-xl"
-                inputMode="decimal"
-                placeholder="0"
-                value={quantityIn}
-                onChange={(event) =>
-                  setQuantityIn(
-                    event.target.value
-                      .replace(/[^0-9,]/g, "")
-                      .replace(/(,.*),/g, "$1")
-                  )
-                }
-              />
-            </Field>
-            <Field label="Custo por unidade">
-              <Input
-                className="h-10 rounded-xl"
-                inputMode="decimal"
-                placeholder="0,00"
-                value={priceBuy}
-                onChange={(event) =>
-                  setPriceBuy(
-                    event.target.value
-                      .replace(/[^0-9,]/g, "")
-                      .replace(/(,.*),/g, "$1")
-                  )
-                }
-              />
-            </Field>
-            <Field label="Data de compra">
+            <Field label="Data de produção">
               <div className="h-10">
                 <Popover modal>
                   <PopoverTrigger
@@ -504,7 +441,7 @@ function EntryDialog({
                   >
                     <CalendarDays className="mr-2 size-4 text-muted-foreground" />
                     {format(
-                      new Date(`${dateBuy}T12:00:00`),
+                      new Date(`${dateProduced}T12:00:00`),
                       "dd 'de' MMMM 'de' yyyy",
                       { locale: ptBR }
                     )}
@@ -514,55 +451,27 @@ function EntryDialog({
                       locale={ptBR}
                       mode="single"
                       onSelect={(value) =>
-                        value && setDateBuy(format(value, "yyyy-MM-dd"))
+                        value && setDateProduced(format(value, "yyyy-MM-dd"))
                       }
-                      selected={new Date(`${dateBuy}T12:00:00`)}
+                      selected={new Date(`${dateProduced}T12:00:00`)}
                     />
                   </PopoverContent>
                 </Popover>
               </div>
             </Field>
           </div>
-          <div className="rounded-xl border border-[#dce3de] p-4 dark:border-border">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <Label htmlFor="notify-limit">Alertar estoque baixo</Label>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Exibe este lote quando o saldo atingir o limite definido.
-                </p>
-              </div>
-              <Switch
-                checked={notifyLimit}
-                id="notify-limit"
-                onCheckedChange={setNotifyLimit}
-              />
-            </div>
-            {notifyLimit && (
-              <div className="mt-4 max-w-56">
-                <Label htmlFor="quantity-notify">Quantidade mínima</Label>
-                <Input
-                  className="mt-2 h-10 rounded-xl"
-                  id="quantity-notify"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={quantityNotify}
-                  onChange={(event) =>
-                    setQuantityNotify(
-                      event.target.value
-                        .replace(/[^0-9,]/g, "")
-                        .replace(/(,.*),/g, "$1")
-                    )
-                  }
-                />
-              </div>
-            )}
-          </div>
+          {finishedProductId && (
+            <RecipePreview
+              quantityProduced={Number(quantityProduced.replace(",", ".")) || 0}
+              recipe={recipe.data}
+            />
+          )}
           <Field label="Observação">
             <Textarea
               className="min-h-20 rounded-xl"
+              onChange={(event) => setObs(event.target.value)}
               placeholder="Opcional"
               value={obs}
-              onChange={(event) => setObs(event.target.value)}
             />
           </Field>
           {error && (
@@ -579,7 +488,7 @@ function EntryDialog({
               {(create.isPending || update.isPending) && (
                 <LoaderCircle className="size-4 animate-spin" />
               )}{" "}
-              {editing ? "Salvar alterações" : "Registrar entrada"}
+              {editing ? "Salvar alterações" : "Confirmar produção"}
             </Button>
           </DialogFooter>
         </form>
@@ -588,37 +497,99 @@ function EntryDialog({
   )
 }
 
-function DeleteEntryDialog({
-  batch,
+function RecipePreview({
+  recipe,
+  quantityProduced,
+}: {
+  recipe?: Array<{
+    id: string
+    rawProductId: string
+    quantityPerUnit: string | number
+    rawProduct: { name: string }
+  }>
+  quantityProduced: number
+}) {
+  if (!recipe) return null
+  if (!recipe.length)
+    return (
+      <p className="rounded-xl bg-amber-100 px-3 py-2 text-sm text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+        Este produto ainda não possui receita cadastrada.
+      </p>
+    )
+  return (
+    <div className="rounded-xl border border-border p-3">
+      <p className="mb-2 text-sm font-medium">Insumos necessários</p>
+      <div className="space-y-1.5">
+        {recipe.map((item) => (
+          <IngredientPreviewRow
+            key={item.id}
+            item={item}
+            quantityProduced={quantityProduced}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function IngredientPreviewRow({
+  item,
+  quantityProduced,
+}: {
+  item: {
+    rawProductId: string
+    quantityPerUnit: string | number
+    rawProduct: { name: string }
+  }
+  quantityProduced: number
+}) {
+  const stock = useProductStock(item.rawProductId)
+  const required = Number(item.quantityPerUnit) * quantityProduced
+  const available = Number(stock.data?.available ?? 0)
+  const insufficient = stock.data !== undefined && available < required
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span>{item.rawProduct.name}</span>
+      <span
+        className={
+          insufficient ? "font-medium text-destructive" : "text-muted-foreground"
+        }
+      >
+        {number(required)} necessário · {number(available)} disponível
+      </span>
+    </div>
+  )
+}
+
+function CancelOrderDialog({
+  order,
   onClose,
 }: {
-  batch: StockBatch | null
+  order: ProductionOrder | null
   onClose: () => void
 }) {
-  const remove = useDeleteStockBatch()
+  const cancel = useCancelProductionOrder()
   const [error, setError] = useState<string | null>(null)
-  useEffect(() => setError(null), [batch])
+  useEffect(() => setError(null), [order])
   async function confirm() {
-    if (!batch) return
+    if (!order) return
     try {
-      await remove.mutateAsync(batch.id)
+      await cancel.mutateAsync(order.id)
       onClose()
     } catch (cause) {
       setError(getApiErrorMessage(cause))
     }
   }
   return (
-    <Dialog open={Boolean(batch)} onOpenChange={(value) => !value && onClose()}>
+    <Dialog onOpenChange={(value) => !value && onClose()} open={Boolean(order)}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Excluir entrada?</DialogTitle>
+          <DialogTitle>Cancelar ordem de produção?</DialogTitle>
           <DialogDescription>
-            O lote de {batch?.product.name} será removido do estoque.
+            Os insumos consumidos por {order?.finishedProduct.name} serão
+            devolvidos ao estoque.
           </DialogDescription>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          Entradas com movimentações posteriores não podem ser excluídas.
-        </p>
         {error && (
           <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
@@ -626,18 +597,18 @@ function DeleteEntryDialog({
         )}
         <DialogFooter>
           <Button onClick={onClose} type="button" variant="outline">
-            Cancelar
+            Voltar
           </Button>
           <Button
-            disabled={remove.isPending}
+            disabled={cancel.isPending}
             onClick={confirm}
             type="button"
             variant="destructive"
           >
-            {remove.isPending && (
+            {cancel.isPending && (
               <LoaderCircle className="size-4 animate-spin" />
             )}{" "}
-            Excluir entrada
+            Cancelar ordem
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -664,7 +635,7 @@ function Pagination({
 }) {
   return (
     <div className="flex items-center justify-between border-t border-[#e5e9e4] px-4 py-3 text-sm text-muted-foreground dark:border-border">
-      <span>{data?.total ?? 0} entradas</span>
+      <span>{data?.total ?? 0} ordens</span>
       <div className="flex items-center gap-2">
         <Button
           disabled={page <= 1}

@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,7 @@ import {
   useUpdateUser,
   useUsers,
 } from "@/hooks/users/use-users"
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type {
   CreateUserInput,
@@ -53,7 +55,7 @@ import type {
   UserStatus,
 } from "@/services/users.service"
 
-const pageSize = 20
+const pageSize = DEFAULT_PAGE_SIZE
 
 export function UsersPage() {
   const [page, setPage] = useState(1)
@@ -144,7 +146,17 @@ export function UsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.isLoading && <LoadingRows />}
+            {users.isLoading && (
+              <TableSkeletonRows
+                columns={[
+                  { className: "py-3 pl-5", variant: "avatar", width: "w-40" },
+                  { width: "w-20" },
+                  { variant: "badge", width: "w-16" },
+                  { className: "hidden md:table-cell", width: "w-24" },
+                  { variant: "actions" },
+                ]}
+              />
+            )}
             {!users.isLoading &&
               users.data?.data.map((user) => (
                 <UserRow
@@ -598,18 +610,5 @@ function ArchiveDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-}
-function LoadingRows() {
-  return (
-    <>
-      {[0, 1, 2].map((row) => (
-        <TableRow key={row}>
-          <TableCell className="h-16" colSpan={5}>
-            <span className="block h-5 w-full animate-pulse rounded bg-muted" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </>
   )
 }

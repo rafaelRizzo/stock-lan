@@ -47,6 +47,12 @@ export type StockMovement = {
   product: { id: string; name: string }
   stockBatch: { id: string }
   sale: { id: string; clientName: string | null } | null
+  productionOrder: { id: string; finishedProduct?: { name: string } } | null
+}
+export type ProductStock = {
+  product: { id: string; name: string }
+  available: string | number
+  batches: StockBatch[]
 }
 export type PaginatedStockMovements = {
   data: StockMovement[]
@@ -97,5 +103,9 @@ export const stockService = {
   },
   async deleteBatch(id: string) {
     await http.delete(`/stock/batches/${id}`)
+  },
+  async getProductStock(productId: string) {
+    const { data } = await http.get<ProductStock>(`/stock/products/${productId}`)
+    return data
   },
 }

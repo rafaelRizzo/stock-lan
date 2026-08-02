@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_MONEY } from "../../lib/decimal-limits.js";
 import { paginationSchema } from "../../lib/pagination.js";
 
 export const entityStatusSchema = z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]);
@@ -21,7 +22,8 @@ export const catalogResources = [
         delegate: "product",
         schema: z.object({
             name: z.string().trim().min(1).max(160),
-            priceSell: z.coerce.number().positive(),
+            priceSell: z.coerce.number().positive().max(MAX_MONEY).optional(),
+            type: z.enum(["RAW_MATERIAL", "FINISHED", "BOTH"]).default("BOTH"),
             obs: z.string().trim().max(2000).optional(),
             status: entityStatusSchema.optional(),
         }),
@@ -42,7 +44,7 @@ export const catalogResources = [
         schema: z.object({
             name: z.string().trim().min(1).max(160),
             recurrence: z.enum(["ONE_TIME", "WEEKLY", "MONTHLY", "YEARLY"]),
-            defaultValue: z.coerce.number().positive(),
+            defaultValue: z.coerce.number().positive().max(MAX_MONEY),
             anchorDate: z.coerce.date().optional(),
             obs: z.string().trim().max(2000).optional(),
             status: entityStatusSchema.optional(),
