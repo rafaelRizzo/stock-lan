@@ -4,6 +4,7 @@ import {
   ArchiveRestore,
   ChevronLeft,
   ChevronRight,
+  KeyRound,
   LoaderCircle,
   Pencil,
   Plus,
@@ -64,6 +65,7 @@ export function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [archiveTarget, setArchiveTarget] = useState<User | null>(null)
   const [editTarget, setEditTarget] = useState<User | null>(null)
+  const [resetTarget, setResetTarget] = useState<User | null>(null)
   const users = useUsers({
     page,
     limit: pageSize,
@@ -163,6 +165,7 @@ export function UsersPage() {
                   key={user.id}
                   onArchive={setArchiveTarget}
                   onEdit={setEditTarget}
+                  onResetPassword={setResetTarget}
                   onRestore={(item) => restore.mutate(item.id)}
                   restoring={restore.isPending}
                   user={user}
@@ -211,6 +214,10 @@ export function UsersPage() {
       </section>
       <CreateDialog onOpenChange={setCreateOpen} open={createOpen} />
       <EditUserDialog onClose={() => setEditTarget(null)} user={editTarget} />
+      <ResetPasswordDialog
+        onClose={() => setResetTarget(null)}
+        user={resetTarget}
+      />
       <ArchiveDialog
         onClose={() => setArchiveTarget(null)}
         onConfirm={() =>
@@ -229,12 +236,14 @@ export function UsersPage() {
 function UserRow({
   onArchive,
   onEdit,
+  onResetPassword,
   onRestore,
   restoring,
   user,
 }: {
   onArchive: (user: User) => void
   onEdit: (user: User) => void
+  onResetPassword: (user: User) => void
   onRestore: (user: User) => void
   restoring: boolean
   user: User
@@ -282,6 +291,15 @@ function UserRow({
           variant="ghost"
         >
           <Pencil className="size-4" />
+        </Button>
+        <Button
+          aria-label={`Redefinir senha de ${user.name}`}
+          className="text-muted-foreground hover:text-foreground"
+          onClick={() => onResetPassword(user)}
+          size="icon-sm"
+          variant="ghost"
+        >
+          <KeyRound className="size-4" />
         </Button>
         {user.status === "ARCHIVED" ? (
           <Button
@@ -572,6 +590,75 @@ function EditUserDialog({
                 <LoaderCircle className="size-4 animate-spin" />
               )}
               Salvar alterações
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+function ResetPasswordDialog({
+  onClose,
+  user,
+}: {
+  onClose: () => void
+  user: User | null
+}) {
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const update = useUpdateUser()
+  useEffect(() => {
+    if (user) {
+      setPassword("")
+      setError(null)
+    }
+  }, [user])
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!user) return
+    if (password.length < 12)
+      return setError("A senha precisa ter pelo menos 12 caracteres.")
+    setError(null)
+    try {
+      await update.mutateAsync({ id: user.id, input: { password } })
+      onClose()
+    } catch (reason) {
+      setError(getApiErrorMessage(reason))
+    }
+  }
+  return (
+    <Dialog onOpenChange={(open) => !open && onClose()} open={Boolean(user)}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Redefinir senha</DialogTitle>
+          <DialogDescription>
+            {user
+              ? `Defina uma nova senha de acesso para ${user.name}.`
+              : ""}
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={submit}>
+          <FormInput
+            label="Nova senha"
+            onChange={setPassword}
+            placeholder="Mínimo de 12 caracteres"
+            type="password"
+            value={password}
+          />
+          {error && <p className="text-sm font-medium text-red-400">{error}</p>}
+          <DialogFooter>
+            <Button onClick={onClose} type="button" variant="outline">
+              Cancelar
+            </Button>
+            <Button
+              className="rounded-xl bg-[#173f31] text-white hover:bg-[#245742]"
+              disabled={update.isPending}
+              type="submit"
+            >
+              {update.isPending && (
+                <LoaderCircle className="size-4 animate-spin" />
+              )}
+              Redefinir senha
             </Button>
           </DialogFooter>
         </form>
