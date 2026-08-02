@@ -2,15 +2,8 @@ services:
   api:
     build: .
     container_name: stock-lan-back-end
-    environment:
-      NODE_ENV: production
-      PORT: 3333
-      DATABASE_URL: postgresql://stock:stock@postgres:5432/stock_lan?schema=public
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: change-this-to-a-32-character-minimum-secret
-      JWT_REFRESH_SECRET: change-this-to-a-different-32-character-secret
-      CORS_ORIGINS: http://localhost:5173
-      DOCS_ENABLED: "true"
+    env_file:
+      - .env
     depends_on:
       postgres:
         condition: service_healthy
