@@ -5,7 +5,7 @@ export const userSchema = z.object({
     name: z.string().trim().min(1).max(160),
     username: z.string().trim().min(3).max(80),
     password: z.string().min(12).max(256),
-    role: z.enum(["ADMIN", "MANAGER", "OPERATOR"]).default("OPERATOR"),
+    role: z.enum(["ADMIN", "MANAGER", "OPERATOR"]).optional(),
     photo: z.string().url().optional(),
     obs: z.string().trim().max(2000).optional(),
     status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
