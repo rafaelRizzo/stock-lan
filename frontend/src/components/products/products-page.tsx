@@ -53,6 +53,7 @@ import {
   useUpdateProduct,
 } from "@/hooks/products/use-products"
 import { useCurrentUser } from "@/hooks/auth/use-current-user"
+import { useQuantityTypes } from "@/hooks/quantity-types/use-quantity-types"
 import { DEFAULT_PAGE_SIZE, PRODUCT_TYPE_LABELS } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type { Product, ProductStatus, ProductType } from "@/services/products.service"
@@ -445,15 +446,23 @@ function CreateProductDialog({
   const [price, setPrice] = useState("")
   const [type, setType] = useState<ProductType>("BOTH")
   const [obs, setObs] = useState("")
+  const [initialQuantity, setInitialQuantity] = useState("")
+  const [initialQuantityTypeId, setInitialQuantityTypeId] = useState("")
   const [error, setError] = useState<string | null>(null)
   const create = useCreateProduct()
+  const quantityTypes = useQuantityTypes({ page: 1, limit: 100, status: "ACTIVE" })
   const isRawMaterial = type === "RAW_MATERIAL"
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const priceSell = Number(price.replace(",", "."))
+    const quantity = Number(initialQuantity.replace(",", "."))
     if (!name.trim()) return setError("Preencha o nome do produto.")
     if (!isRawMaterial && (!price || !Number.isFinite(priceSell) || priceSell <= 0))
       return setError("Informe um preço de venda válido.")
+    if (initialQuantity && (!Number.isFinite(quantity) || quantity <= 0))
+      return setError("Informe uma quantidade inicial válida.")
+    if (initialQuantity && !initialQuantityTypeId)
+      return setError("Selecione a unidade do estoque inicial.")
     setError(null)
     try {
       await create.mutateAsync({
@@ -461,11 +470,15 @@ function CreateProductDialog({
         priceSell: isRawMaterial ? undefined : priceSell,
         type,
         obs: obs.trim() || undefined,
+        initialQuantity: initialQuantity ? quantity : undefined,
+        initialQuantityTypeId: initialQuantity ? initialQuantityTypeId : undefined,
       })
       setName("")
       setPrice("")
       setType("BOTH")
       setObs("")
+      setInitialQuantity("")
+      setInitialQuantityTypeId("")
       onOpenChange(false)
     } catch (reason) {
       setError(getApiErrorMessage(reason))
@@ -512,6 +525,40 @@ function CreateProductDialog({
               value={obs}
             />
           </label>
+          <div className="grid gap-4 rounded-xl border border-[#dce3de] p-3 sm:grid-cols-2 dark:border-border">
+            <ProductInput
+              label="Estoque inicial (opcional)"
+              onChange={setInitialQuantity}
+              placeholder="0"
+              price
+              value={initialQuantity}
+            />
+            <label className="grid gap-2 text-sm font-medium">
+              Unidade
+              <Select
+                onValueChange={(value) => setInitialQuantityTypeId(value ?? "")}
+                value={initialQuantityTypeId}
+              >
+                <SelectTrigger className="h-10! w-full rounded-xl! border-[#dce3de]! bg-background! shadow-none dark:border-border!">
+                  <span>
+                    {quantityTypes.data?.data.find(
+                      (item) => item.id === initialQuantityTypeId
+                    )?.name || "Selecione"}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  {quantityTypes.data?.data.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+            <p className="col-span-full text-xs text-muted-foreground">
+              O estoque inicial entra sem custo de compra associado.
+            </p>
+          </div>
           {error && <p className="text-sm font-medium text-red-400">{error}</p>}
           <DialogFooter>
             <Button
