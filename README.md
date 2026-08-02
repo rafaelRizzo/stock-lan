@@ -1,6 +1,6 @@
 # 📦 stock-lan
 
-Sistema de gestão de estoque e produção: controle de matéria-prima, produtos acabados, receitas (BOM), ordens de produção com custeio FIFO, vendas e relatórios.
+Sistema de gestão de estoque: controle de matéria-prima, produtos acabados, vendas e relatórios.
 
 <p>
   <img src="https://img.shields.io/badge/Bun-000000?logo=bun&logoColor=white" alt="Bun" />

@@ -75,21 +75,6 @@ test("registers sales and reports routes", async () => {
     ]);
 });
 
-test("registers production routes", async () => {
-    const { registerProductionRoutes } = await import("../../src/modules/production/production.routes.js");
-    const { app, routes } = createAppRecorder();
-    await registerProductionRoutes(app);
-    expect(routes).toEqual([
-        { method: "GET", url: "/production/recipes/:productId" },
-        { method: "PATCH", url: "/production/recipes/:productId" },
-        { method: "POST", url: "/production/orders" },
-        { method: "GET", url: "/production/orders" },
-        { method: "GET", url: "/production/orders/:id" },
-        { method: "PATCH", url: "/production/orders/:id" },
-        { method: "POST", url: "/production/orders/:id/cancel" },
-    ]);
-});
-
 test("registers suppliers routes", async () => {
     const { registerSuppliersRoutes } = await import("../../src/modules/suppliers/suppliers.routes.js");
     const { app, routes } = createAppRecorder();

@@ -21,15 +21,6 @@ const prismaMock = {
     },
     stockMovement: { create: mock(), findMany: mock(), count: mock(), deleteMany: mock() },
     product: { findUnique: mock(), findFirst: mock(), create: mock(), update: mock() },
-    recipeItem: { findMany: mock(), deleteMany: mock(), createMany: mock() },
-    productionOrder: {
-        create: mock(),
-        update: mock(),
-        findUnique: mock(),
-        findUniqueOrThrow: mock(),
-        findMany: mock(),
-        count: mock(),
-    },
     user: { findUnique: mock() },
     userSession: { create: mock(), findUnique: mock(), update: mock(), updateMany: mock() },
     notification: {
@@ -56,7 +47,6 @@ const { expensesService } = await import("../../src/modules/expenses/expenses.se
 const { catalogService } = await import("../../src/modules/catalog/catalog.service.js");
 const { catalogResources } = await import("../../src/modules/catalog/catalog.schemas.js");
 const { runExpenseRecurrenceJob } = await import("../../src/jobs/expense-recurrence.job.js");
-const { productionService } = await import("../../src/modules/production/production.service.js");
 const { salesService } = await import("../../src/modules/sales/sales.service.js");
 
 const expenseTemplateResource = catalogResources.find((resource) => resource.delegate === "expenseTemplate");
@@ -126,169 +116,6 @@ test("creates a stock batch and inbound movement in one transaction", async () =
     );
     expect(result).toEqual({ id: "batch", productId: "product" });
     expect(prismaMock.stockMovement.create).toHaveBeenCalledTimes(1);
-});
-
-test("production order consumes raw material via FIFO and prices the output at real cost", async () => {
-    prismaMock.product.findFirst.mockResolvedValue({ id: "trufa", status: "ACTIVE", name: "Trufa" });
-    prismaMock.recipeItem.findMany.mockResolvedValue([
-        {
-            rawProductId: "cream",
-            quantityPerUnit: new Prisma.Decimal(2),
-            rawProduct: { name: "Creme" },
-        },
-    ]);
-    prismaMock.stockBatch.findMany.mockResolvedValue([
-        { id: "batch1", quantityLeft: new Prisma.Decimal(10), priceBuy: new Prisma.Decimal(5), dateBuy: new Date() },
-    ]);
-    prismaMock.stockBatch.update.mockResolvedValue({});
-    prismaMock.stockBatch.create.mockResolvedValue({ id: "outputBatch" });
-    prismaMock.stockMovement.create.mockResolvedValue({ id: "movement" });
-    prismaMock.productionOrder.create.mockResolvedValue({ id: "order1" });
-    prismaMock.productionOrder.findUniqueOrThrow.mockResolvedValue({ id: "order1" });
-
-    await productionService.create(
-        { finishedProductId: "trufa", quantityTypeId: "unit", quantityProduced: 3, dateProduced: new Date() },
-        "user",
-    );
-
-    expect(prismaMock.stockBatch.update).toHaveBeenCalledWith({
-        where: { id: "batch1" },
-        data: { quantityLeft: { decrement: new Prisma.Decimal(6) } },
-    });
-    const orderData = prismaMock.productionOrder.create.mock.calls[0][0].data;
-    expect(orderData.costUnit.toString()).toBe("10");
-    expect(prismaMock.stockMovement.create).toHaveBeenCalledTimes(2);
-});
-
-test("production order fails when no recipe is defined for the finished product", async () => {
-    prismaMock.product.findFirst.mockResolvedValue({ id: "trufa", status: "ACTIVE", name: "Trufa" });
-    prismaMock.recipeItem.findMany.mockResolvedValue([]);
-
-    await expect(
-        productionService.create(
-            { finishedProductId: "trufa", quantityTypeId: "unit", quantityProduced: 3, dateProduced: new Date() },
-            "user",
-        ),
-    ).rejects.toThrow("No recipe defined for this product");
-    expect(prismaMock.productionOrder.create).not.toHaveBeenCalled();
-});
-
-test("production order fails when raw material stock is insufficient", async () => {
-    prismaMock.product.findFirst.mockResolvedValue({ id: "trufa", status: "ACTIVE", name: "Trufa" });
-    prismaMock.recipeItem.findMany.mockResolvedValue([
-        { rawProductId: "cream", quantityPerUnit: new Prisma.Decimal(2), rawProduct: { name: "Creme" } },
-    ]);
-    prismaMock.stockBatch.findMany.mockResolvedValue([]);
-
-    await expect(
-        productionService.create(
-            { finishedProductId: "trufa", quantityTypeId: "unit", quantityProduced: 3, dateProduced: new Date() },
-            "user",
-        ),
-    ).rejects.toThrow("Insufficient stock for Creme");
-    expect(prismaMock.productionOrder.create).not.toHaveBeenCalled();
-});
-
-test("production order cannot be canceled after its output has been sold", async () => {
-    prismaMock.productionOrder.findUnique.mockResolvedValue({
-        id: "order1",
-        status: "ACTIVE",
-        outputBatch: { id: "outputBatch", saleItems: [{ id: "saleItem1" }] },
-        movements: [],
-    });
-
-    await expect(productionService.cancel("order1", "user")).rejects.toThrow(
-        "Production order cannot be canceled after its output has been sold",
-    );
-    expect(prismaMock.productionOrder.update).not.toHaveBeenCalled();
-});
-
-test("production order cancellation reverts consumed raw material batches", async () => {
-    prismaMock.productionOrder.findUnique.mockResolvedValue({
-        id: "order1",
-        status: "ACTIVE",
-        outputBatch: { id: "outputBatch", saleItems: [] },
-        movements: [
-            { type: "OUT", productId: "cream", stockBatchId: "batch1", quantity: new Prisma.Decimal(6) },
-            { type: "IN", productId: "trufa", stockBatchId: "outputBatch", quantity: new Prisma.Decimal(3) },
-        ],
-    });
-    prismaMock.stockBatch.update.mockResolvedValue({ priceBuy: new Prisma.Decimal(5) });
-    prismaMock.productionOrder.update.mockResolvedValue({ id: "order1", status: "ARCHIVED" });
-
-    await productionService.cancel("order1", "user");
-
-    expect(prismaMock.stockBatch.update).toHaveBeenCalledWith({
-        where: { id: "batch1" },
-        data: { quantityLeft: { increment: new Prisma.Decimal(6) } },
-    });
-    expect(prismaMock.stockBatch.update).toHaveBeenCalledWith({
-        where: { id: "outputBatch" },
-        data: { quantityLeft: 0, status: "ARCHIVED" },
-    });
-    expect(prismaMock.stockMovement.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ type: "REVERSAL", stockBatchId: "batch1" }) }),
-    );
-});
-
-test("production order update recalculates consumption and replaces the output batch", async () => {
-    prismaMock.productionOrder.findUnique.mockResolvedValue({
-        id: "order1",
-        status: "ACTIVE",
-        outputBatch: { id: "oldBatch", saleItems: [] },
-        movements: [
-            { type: "OUT", productId: "cream", stockBatchId: "batch1", quantity: new Prisma.Decimal(6) },
-            { type: "IN", productId: "trufa", stockBatchId: "oldBatch", quantity: new Prisma.Decimal(3) },
-        ],
-    });
-    prismaMock.stockBatch.update.mockResolvedValue({});
-    prismaMock.stockBatch.delete.mockResolvedValue({});
-    prismaMock.stockMovement.deleteMany.mockResolvedValue({ count: 2 });
-    prismaMock.product.findFirst.mockResolvedValue({ id: "trufa", status: "ACTIVE", name: "Trufa" });
-    prismaMock.recipeItem.findMany.mockResolvedValue([
-        { rawProductId: "cream", quantityPerUnit: new Prisma.Decimal(2), rawProduct: { name: "Creme" } },
-    ]);
-    prismaMock.stockBatch.findMany.mockResolvedValue([
-        { id: "batch2", quantityLeft: new Prisma.Decimal(20), priceBuy: new Prisma.Decimal(4), dateBuy: new Date() },
-    ]);
-    prismaMock.stockBatch.create.mockResolvedValue({ id: "newBatch" });
-    prismaMock.stockMovement.create.mockResolvedValue({ id: "movement" });
-    prismaMock.productionOrder.update.mockResolvedValue({ id: "order1" });
-    prismaMock.productionOrder.findUniqueOrThrow.mockResolvedValue({ id: "order1" });
-
-    await productionService.update(
-        "order1",
-        { finishedProductId: "trufa", quantityTypeId: "unit", quantityProduced: 5, dateProduced: new Date() },
-        "user",
-    );
-
-    expect(prismaMock.stockBatch.update).toHaveBeenCalledWith({
-        where: { id: "batch1" },
-        data: { quantityLeft: { increment: new Prisma.Decimal(6) } },
-    });
-    expect(prismaMock.stockMovement.deleteMany).toHaveBeenCalledWith({ where: { productionOrderId: "order1" } });
-    expect(prismaMock.stockBatch.delete).toHaveBeenCalledWith({ where: { id: "oldBatch" } });
-    expect(prismaMock.stockBatch.update).toHaveBeenCalledWith({
-        where: { id: "batch2" },
-        data: { quantityLeft: { decrement: new Prisma.Decimal(10) } },
-    });
-});
-
-test("production order update is blocked once its output has been sold", async () => {
-    prismaMock.productionOrder.findUnique.mockResolvedValue({
-        id: "order1",
-        status: "ACTIVE",
-        outputBatch: { id: "oldBatch", saleItems: [{ id: "saleItem1" }] },
-        movements: [],
-    });
-    await expect(
-        productionService.update(
-            "order1",
-            { finishedProductId: "trufa", quantityTypeId: "unit", quantityProduced: 5, dateProduced: new Date() },
-            "user",
-        ),
-    ).rejects.toThrow("Production order cannot be edited after its output has been sold");
-    expect(prismaMock.stockBatch.delete).not.toHaveBeenCalled();
 });
 
 test("product create requires priceSell unless the product is a raw material", async () => {

@@ -28,18 +28,9 @@ const apiErrorMessages: Record<string, string> = {
   "Internal server error": "Ocorreu um erro interno. Tente novamente.",
   "Invalid refresh token": "Sua sessão expirou. Entre novamente.",
   "Invalid username or password": "Usuário ou senha inválidos.",
-  "No recipe defined for this product":
-    "Este produto ainda não possui receita cadastrada.",
   "Not implemented": "Este recurso ainda não está disponível.",
   "Payment exceeds sale total": "O pagamento excede o total da venda.",
   "Product not found": "Produto não encontrado.",
-  "Production order already canceled": "A ordem de produção já está cancelada.",
-  "Production order cannot be canceled after its output has been sold":
-    "A ordem não pode ser cancelada porque o lote gerado já foi vendido.",
-  "Production order cannot be edited after its output has been sold":
-    "A ordem não pode ser editada porque o lote gerado já foi vendido.",
-  "Production order is not active": "A ordem de produção não está ativa.",
-  "Production order not found": "Ordem de produção não encontrada.",
   "Resource cannot be deleted because it has linked records":
     "O registro não pode ser excluído porque possui vínculos.",
   "Resource not found": "Registro não encontrado.",

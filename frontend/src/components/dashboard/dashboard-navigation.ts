@@ -1,11 +1,9 @@
 import type { LucideIcon } from "lucide-react"
 import {
-  BookOpen,
   Boxes,
   ChartNoAxesCombined,
   CircleDollarSign,
   ClipboardList,
-  Factory,
   HandCoins,
   LayoutDashboard,
   PackagePlus,
@@ -49,21 +47,6 @@ export const navigationGroups: NavigationGroup[] = [
         label: "Alertas de estoque",
         to: "/dashboard/stock/alerts",
         icon: PackageSearch,
-      },
-    ],
-  },
-  {
-    label: "PRODUÇÃO",
-    items: [
-      {
-        label: "Ordens de produção",
-        to: "/dashboard/production/orders",
-        icon: Factory,
-      },
-      {
-        label: "Receitas",
-        to: "/dashboard/production/recipes",
-        icon: BookOpen,
       },
     ],
   },

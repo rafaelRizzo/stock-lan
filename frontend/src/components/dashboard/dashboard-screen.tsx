@@ -24,8 +24,6 @@ import { ExpenseTemplatesPage } from "@/components/expenses/expense-templates-pa
 import { DebtorsPage } from "@/components/debtors/debtors-page"
 import { ExpensesPage } from "@/components/expenses/expenses-page"
 import { SalesPage } from "@/components/sales/sales-page"
-import { ProductionOrdersPage } from "@/components/production/production-orders-page"
-import { RecipesPage } from "@/components/production/recipes-page"
 import { StockBatchesPage } from "@/components/stock/stock-batches-page"
 import { StockMovementsPage } from "@/components/stock/stock-movements-page"
 import { StockAlertsPage } from "@/components/stock/stock-alerts-page"
@@ -108,10 +106,6 @@ export function DashboardScreen() {
             <StockMovementsPage />
           ) : pathname === "/dashboard/stock/alerts" ? (
             <StockAlertsPage />
-          ) : pathname === "/dashboard/production/orders" ? (
-            <ProductionOrdersPage />
-          ) : pathname === "/dashboard/production/recipes" ? (
-            <RecipesPage />
           ) : pathname === "/dashboard/expenses" ? (
             <ExpensesPage />
           ) : pathname === "/dashboard/reports" ? (

@@ -204,7 +204,6 @@ export const stockService = {
                         product: true,
                         stockBatch: true,
                         sale: true,
-                        productionOrder: { include: { finishedProduct: true } },
                     },
                     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
                     skip,
