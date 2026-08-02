@@ -3,7 +3,42 @@ import { getOrSetLocal } from "../../lib/cache.js";
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 
+export async function createNoCostStockBatch(
+    tx: Prisma.TransactionClient,
+    input: { productId: string; quantityTypeId: string; quantity: number; obs?: string },
+    userId: string,
+) {
+    const batch = await tx.stockBatch.create({
+        data: {
+            productId: input.productId,
+            quantityTypeId: input.quantityTypeId,
+            quantityIn: input.quantity,
+            quantityLeft: input.quantity,
+            priceBuy: 0,
+            dateBuy: new Date(),
+            obs: input.obs,
+            createdUserId: userId,
+        },
+    });
+    await tx.stockMovement.create({
+        data: {
+            type: "IN",
+            productId: batch.productId,
+            stockBatchId: batch.id,
+            quantity: input.quantity,
+            costUnit: 0,
+            createdUserId: userId,
+        },
+    });
+    return batch;
+}
+
 export const stockService = {
+    addNoCostStock: async (
+        input: { productId: string; quantityTypeId: string; quantity: number; obs?: string },
+        userId: string,
+    ) => prisma.$transaction((tx) => createNoCostStockBatch(tx, input, userId)),
+
     createBatch: async (
         input: {
             supplierId: string;

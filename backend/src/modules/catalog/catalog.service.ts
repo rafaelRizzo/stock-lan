@@ -4,6 +4,7 @@ import { getOrSetLocal, invalidate, invalidatePrefix } from "../../lib/cache.js"
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { computeNextDueDate, type RecurrenceKind } from "../../lib/recurrence.js";
+import { createNoCostStockBatch } from "../stock/stock.service.js";
 import type { CatalogResource } from "./catalog.schemas.js";
 
 type CrudDelegate = {
@@ -200,27 +201,15 @@ export const catalogService = {
                       const product = await tx.product.create({
                           data: { ...payload, createdUserId: userId } as Prisma.ProductUncheckedCreateInput,
                       });
-                      const batch = await tx.stockBatch.create({
-                          data: {
+                      await createNoCostStockBatch(
+                          tx,
+                          {
                               productId: product.id,
                               quantityTypeId: initialQuantityTypeId as string,
-                              quantityIn: initialQuantity as number,
-                              quantityLeft: initialQuantity as number,
-                              priceBuy: 0,
-                              dateBuy: new Date(),
-                              createdUserId: userId,
-                          },
-                      });
-                      await tx.stockMovement.create({
-                          data: {
-                              type: "IN",
-                              productId: product.id,
-                              stockBatchId: batch.id,
                               quantity: initialQuantity as number,
-                              costUnit: 0,
-                              createdUserId: userId,
                           },
-                      });
+                          userId,
+                      );
                       return product;
                   })
                 : await db[resource.delegate].create({ data: { ...payload, createdUserId: userId } });

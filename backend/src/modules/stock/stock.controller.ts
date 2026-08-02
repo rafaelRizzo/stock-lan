@@ -3,6 +3,7 @@ import { invalidate, invalidatePrefix } from "../../lib/cache.js";
 import { parse } from "../../lib/errors.js";
 import { getSkip, paginate, paginationSchema } from "../../lib/pagination.js";
 import {
+    noCostStockSchema,
     stockAdjustmentSchema,
     stockBatchListSchema,
     stockBatchParamsSchema,
@@ -13,6 +14,17 @@ import {
 import { stockService } from "./stock.service.js";
 
 export const stockController = {
+    addNoCostStock: async (request: FastifyRequest, reply: FastifyReply) => {
+        const input = parse(noCostStockSchema, request.body);
+        const batch = await stockService.addNoCostStock(input, request.user.sub);
+        await invalidate(`stock:product:${batch.productId}`, "dashboard");
+        await invalidatePrefix("catalog:product:");
+        await invalidatePrefix("stock:alerts:");
+        await invalidatePrefix("stock:movements:");
+        await invalidatePrefix("reports:");
+        return reply.status(201).send(batch);
+    },
+
     createBatch: async (request: FastifyRequest, reply: FastifyReply) => {
         const input = parse(stockBatchSchema, request.body);
         if (input.notifyLimit && !input.quantityNotify)
