@@ -1,11 +1,60 @@
-import { type FastifyInstance } from 'fastify'
-import * as SupplierController from './suppliers.controller'
-import { verifyToken } from '../../middlewares/auth.middleware'
+import type { FastifyInstance } from "fastify";
+import { requireRole } from "../../middlewares/auth.middleware.js";
+import { suppliersController } from "./suppliers.controller.js";
 
-export async function supplierRoutes(app: FastifyInstance) {
-    app.post('/suppliers', { preHandler: verifyToken }, SupplierController.createSupplier)
-    app.get('/suppliers', { preHandler: verifyToken }, SupplierController.getSuppliers)
-    app.get('/suppliers/:id', { preHandler: verifyToken }, SupplierController.getSupplierById)
-    app.put('/suppliers/:id', { preHandler: verifyToken }, SupplierController.updateSupplier)
-    app.delete('/suppliers/:id', { preHandler: verifyToken }, SupplierController.deleteSupplier)
+export async function registerSuppliersRoutes(
+    app: FastifyInstance,
+) {
+    app.get(
+        "/suppliers",
+        {
+            preHandler: requireRole(
+                "ADMIN",
+                "MANAGER",
+                "OPERATOR",
+            ),
+            schema: { tags: ["suppliers"] },
+        },
+        suppliersController.list,
+    );
+    app.post(
+        "/suppliers",
+        {
+            preHandler: requireRole("ADMIN", "MANAGER"),
+            schema: { tags: ["suppliers"] },
+        },
+        suppliersController.create,
+    );
+    app.patch(
+        "/suppliers/:id",
+        {
+            preHandler: requireRole("ADMIN", "MANAGER"),
+            schema: { tags: ["suppliers"] },
+        },
+        suppliersController.update,
+    );
+    app.delete(
+        "/suppliers/:id/permanent",
+        {
+            preHandler: requireRole("ADMIN"),
+            schema: { tags: ["suppliers"] },
+        },
+        suppliersController.permanentDelete,
+    );
+    app.delete(
+        "/suppliers/:id",
+        {
+            preHandler: requireRole("ADMIN"),
+            schema: { tags: ["suppliers"] },
+        },
+        suppliersController.archive,
+    );
+    app.patch(
+        "/suppliers/:id/restore",
+        {
+            preHandler: requireRole("ADMIN"),
+            schema: { tags: ["suppliers"] },
+        },
+        suppliersController.restore,
+    );
 }

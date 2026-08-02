@@ -1,0 +1,436 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EntityStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  OPERATOR
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+  REVERSAL
+}
+
+enum ProductType {
+  RAW_MATERIAL
+  FINISHED
+  BOTH
+}
+
+enum SaleStatus {
+  PAID
+  PENDING
+  FREE
+  DEBT
+  CANCELED
+}
+
+enum PaymentMethod {
+  CASH
+  PIX
+  CARD
+  BANK_TRANSFER
+  OTHER
+}
+
+enum ExpenseRecurrence {
+  ONE_TIME
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum ExpenseStatus {
+  PENDING
+  PAID
+  CANCELED
+}
+
+model User {
+  id                String             @id @default(cuid())
+  name              String             @unique
+  username          String             @unique
+  passwordHash      String
+  photo             String?
+  obs               String?
+  role              UserRole           @default(OPERATOR)
+  status            EntityStatus       @default(ACTIVE)
+  createdUserId     String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  createdUser       User?              @relation("UserCreator", fields: [createdUserId], references: [id])
+  createdUsers      User[]             @relation("UserCreator")
+  sessions          UserSession[]      @relation("SessionOwner")
+  createdSessions   UserSession[]      @relation("SessionCreator")
+  audits            Audit[]            @relation("AuditActor")
+  createdAudits     Audit[]            @relation("AuditCreator")
+  quantityTypes     QuantityType[]
+  suppliers         Supplier[]
+  products          Product[]
+  debtors           Debtor[]
+  stockBatches      StockBatch[]
+  sales             Sale[]
+  saleItems         SaleItem[]
+  stockMovements    StockMovement[]
+  payments          Payment[]
+  expenseTemplates  ExpenseTemplate[]
+  expenses          Expense[]
+  notificationReads NotificationRead[]
+  recipeItems       RecipeItem[]
+  productionOrders  ProductionOrder[]
+
+  @@index([status])
+  @@index([createdUserId])
+  @@index([createdAt])
+}
+
+model UserSession {
+  id            String    @id @default(cuid())
+  userId        String
+  tokenHash     String    @unique
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  createdUserId String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation("SessionOwner", fields: [userId], references: [id], onDelete: Cascade)
+  createdUser   User      @relation("SessionCreator", fields: [createdUserId], references: [id])
+
+  @@index([userId, expiresAt])
+  @@index([createdUserId])
+  @@index([createdAt])
+}
+
+model QuantityType {
+  id               String            @id @default(cuid())
+  name             String            @unique
+  status           EntityStatus      @default(ACTIVE)
+  createdUserId    String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  createdUser      User              @relation(fields: [createdUserId], references: [id])
+  stockBatches     StockBatch[]
+  productionOrders ProductionOrder[]
+
+  @@index([status, createdAt])
+  @@index([createdUserId])
+}
+
+model Supplier {
+  id            String       @id @default(cuid())
+  name          String       @unique
+  phone         String?
+  obs           String?
+  status        EntityStatus @default(ACTIVE)
+  createdUserId String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  createdUser   User         @relation(fields: [createdUserId], references: [id])
+  stockBatches  StockBatch[]
+
+  @@index([status, createdAt])
+  @@index([createdUserId])
+}
+
+model Product {
+  id               String            @id @default(cuid())
+  name             String            @unique
+  priceSell        Decimal?          @db.Decimal(14, 2)
+  type             ProductType       @default(BOTH)
+  obs              String?
+  status           EntityStatus      @default(ACTIVE)
+  createdUserId    String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  createdUser      User              @relation(fields: [createdUserId], references: [id])
+  stockBatches     StockBatch[]
+  saleItems        SaleItem[]
+  movements        StockMovement[]
+  recipeAsFinished RecipeItem[]      @relation("RecipeFinished")
+  recipeAsRaw      RecipeItem[]      @relation("RecipeRaw")
+  productionOrders ProductionOrder[]
+
+  @@index([status, createdAt])
+  @@index([createdUserId])
+}
+
+model RecipeItem {
+  id                String   @id @default(cuid())
+  finishedProductId String
+  rawProductId      String
+  quantityPerUnit   Decimal  @db.Decimal(14, 3)
+  createdUserId     String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  finishedProduct   Product  @relation("RecipeFinished", fields: [finishedProductId], references: [id], onDelete: Cascade)
+  rawProduct        Product  @relation("RecipeRaw", fields: [rawProductId], references: [id])
+  createdUser       User     @relation(fields: [createdUserId], references: [id])
+
+  @@unique([finishedProductId, rawProductId])
+  @@index([rawProductId])
+  @@index([createdUserId])
+}
+
+model ProductionOrder {
+  id                String          @id @default(cuid())
+  finishedProductId String
+  quantityTypeId    String
+  quantityProduced  Decimal         @db.Decimal(14, 3)
+  costUnit          Decimal         @db.Decimal(14, 2)
+  dateProduced      DateTime        @db.Date
+  obs               String?
+  status            EntityStatus    @default(ACTIVE)
+  createdUserId     String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  finishedProduct   Product         @relation(fields: [finishedProductId], references: [id])
+  quantityType      QuantityType    @relation(fields: [quantityTypeId], references: [id])
+  createdUser       User            @relation(fields: [createdUserId], references: [id])
+  outputBatch       StockBatch?
+  movements         StockMovement[]
+
+  @@index([finishedProductId, createdAt])
+  @@index([status, createdAt])
+  @@index([createdUserId])
+}
+
+model Debtor {
+  id            String       @id @default(cuid())
+  name          String       @unique
+  phone         String?
+  obs           String?
+  status        EntityStatus @default(ACTIVE)
+  createdUserId String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  createdUser   User         @relation(fields: [createdUserId], references: [id])
+  sales         Sale[]
+
+  @@index([status, createdAt])
+  @@index([createdUserId])
+}
+
+model StockBatch {
+  id                String           @id @default(cuid())
+  supplierId        String?
+  productId         String
+  quantityTypeId    String
+  quantityIn        Decimal          @db.Decimal(14, 3)
+  quantityLeft      Decimal          @db.Decimal(14, 3)
+  priceBuy          Decimal          @db.Decimal(14, 2)
+  dateBuy           DateTime         @db.Date
+  notifyLimit       Boolean          @default(false)
+  quantityNotify    Decimal?         @db.Decimal(14, 3)
+  obs               String?
+  status            EntityStatus     @default(ACTIVE)
+  productionOrderId String?          @unique
+  createdUserId     String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  supplier          Supplier?        @relation(fields: [supplierId], references: [id])
+  product           Product          @relation(fields: [productId], references: [id])
+  quantityType      QuantityType     @relation(fields: [quantityTypeId], references: [id])
+  productionOrder   ProductionOrder? @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  createdUser       User             @relation(fields: [createdUserId], references: [id])
+  saleItems         SaleItem[]
+  movements         StockMovement[]
+
+  @@index([supplierId])
+  @@index([productId, quantityLeft])
+  @@index([quantityTypeId])
+  @@index([dateBuy])
+  @@index([notifyLimit, quantityLeft])
+  @@index([createdUserId])
+  @@index([createdAt])
+}
+
+model Sale {
+  id            String          @id @default(cuid())
+  clientName    String?
+  status        SaleStatus      @default(PENDING)
+  total         Decimal         @db.Decimal(14, 2)
+  debtorId      String?
+  obs           String?
+  createdUserId String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  debtor        Debtor?         @relation(fields: [debtorId], references: [id])
+  createdUser   User            @relation(fields: [createdUserId], references: [id])
+  items         SaleItem[]
+  payments      Payment[]
+  movements     StockMovement[]
+
+  @@index([status, createdAt])
+  @@index([clientName])
+  @@index([debtorId, createdAt])
+  @@index([createdUserId])
+}
+
+model SaleItem {
+  id            String     @id @default(cuid())
+  saleId        String
+  productId     String
+  stockBatchId  String
+  quantity      Decimal    @db.Decimal(14, 3)
+  priceUnit     Decimal    @db.Decimal(14, 2)
+  priceTotal    Decimal    @db.Decimal(14, 2)
+  createdUserId String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  sale          Sale       @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product       Product    @relation(fields: [productId], references: [id])
+  stockBatch    StockBatch @relation(fields: [stockBatchId], references: [id])
+  createdUser   User       @relation(fields: [createdUserId], references: [id])
+
+  @@index([saleId, createdAt])
+  @@index([productId])
+  @@index([stockBatchId])
+  @@index([createdUserId])
+}
+
+model StockMovement {
+  id                String            @id @default(cuid())
+  type              StockMovementType
+  productId         String
+  stockBatchId      String
+  saleId            String?
+  productionOrderId String?
+  quantity          Decimal           @db.Decimal(14, 3)
+  costUnit          Decimal           @db.Decimal(14, 2)
+  obs               String?
+  createdUserId     String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  product           Product           @relation(fields: [productId], references: [id])
+  stockBatch        StockBatch        @relation(fields: [stockBatchId], references: [id], onDelete: Cascade)
+  sale              Sale?             @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productionOrder   ProductionOrder?  @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  createdUser       User              @relation(fields: [createdUserId], references: [id])
+
+  @@index([type, createdAt])
+  @@index([productId, createdAt])
+  @@index([stockBatchId])
+  @@index([saleId, createdAt])
+  @@index([productionOrderId, createdAt])
+  @@index([createdUserId])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  saleId        String
+  amount        Decimal       @db.Decimal(14, 2)
+  method        PaymentMethod
+  paidAt        DateTime      @default(now())
+  obs           String?
+  createdUserId String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  sale          Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  createdUser   User          @relation(fields: [createdUserId], references: [id])
+
+  @@index([saleId, paidAt])
+  @@index([createdUserId])
+  @@index([createdAt])
+}
+
+model ExpenseTemplate {
+  id            String            @id @default(cuid())
+  name          String            @unique
+  recurrence    ExpenseRecurrence
+  defaultValue  Decimal           @db.Decimal(14, 2)
+  status        EntityStatus      @default(ACTIVE)
+  anchorDate    DateTime?         @db.Date
+  nextDueDate   DateTime?         @db.Date
+  obs           String?
+  createdUserId String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  createdUser   User              @relation(fields: [createdUserId], references: [id])
+  expenses      Expense[]
+
+  @@index([recurrence])
+  @@index([status, createdAt])
+  @@index([createdUserId])
+  @@index([nextDueDate])
+}
+
+model Expense {
+  id                String           @id @default(cuid())
+  expenseTemplateId String?
+  name              String
+  value             Decimal          @db.Decimal(14, 2)
+  dueDate           DateTime         @db.Date
+  paidAt            DateTime?
+  status            ExpenseStatus    @default(PENDING)
+  obs               String?
+  createdUserId     String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  expenseTemplate   ExpenseTemplate? @relation(fields: [expenseTemplateId], references: [id])
+  createdUser       User             @relation(fields: [createdUserId], references: [id])
+
+  @@index([status, dueDate])
+  @@index([expenseTemplateId])
+  @@index([createdUserId])
+  @@index([createdAt])
+}
+
+model Notification {
+  id         String             @id @default(cuid())
+  type       String
+  title      String
+  message    String
+  entityType String
+  entityId   String
+  createdAt  DateTime           @default(now())
+  reads      NotificationRead[]
+
+  @@index([type, createdAt])
+}
+
+model NotificationRead {
+  id             String       @id @default(cuid())
+  notificationId String
+  userId         String
+  readAt         DateTime     @default(now())
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@unique([notificationId, userId])
+  @@index([userId])
+}
+
+model Audit {
+  id            String   @id @default(cuid())
+  entity        String
+  entityId      String
+  action        String
+  previous      Json?
+  current       Json?
+  actorId       String
+  createdUserId String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  actor         User     @relation("AuditActor", fields: [actorId], references: [id])
+  createdUser   User     @relation("AuditCreator", fields: [createdUserId], references: [id])
+
+  @@index([entity, entityId, createdAt])
+  @@index([actorId])
+  @@index([createdUserId])
+  @@index([createdAt])
+}

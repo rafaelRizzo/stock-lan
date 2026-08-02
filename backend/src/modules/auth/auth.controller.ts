@@ -1,45 +1,22 @@
-import type { FastifyRequest, FastifyReply } from 'fastify'
-import * as AuthService from './auth.service'
-import { handleError } from '../../utils/handlers/handler.errors'
-import { authUserSchema } from './schemas/auth.schema'
-import { jtiManager } from '../../utils/jwt/jti.cache'
-import jwt from 'jsonwebtoken'
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { parse } from "../../lib/errors.js";
+import { loginSchema, refreshSchema, setupSchema } from "./auth.schemas.js";
+import { authService } from "./auth.service.js";
 
-export const authUser = async (req: FastifyRequest, reply: FastifyReply) => {
-    try {
-        const data = authUserSchema.parse(req.body)
-
-        const { token } = await AuthService.authUser(data)
-
-        return reply.status(200).send({
-            success: true,
-            message: 'Login realizado com sucesso',
-            token
-        })
-
-    } catch (error) {
-        return handleError(reply, error)
-    }
-}
-
-export const logout = async (req: FastifyRequest, reply: FastifyReply) => {
-    try {
-        const auth = req.headers.authorization
-        const token = auth?.startsWith('Bearer ') ? auth.slice(7) : null
-
-        if (token) {
-            const decoded = jwt.decode(token) as { jti?: string }
-
-            if (decoded?.jti) {
-                await jtiManager.revoke(decoded.jti)
-            }
-        }
-
-        return reply.status(200).send({
-            success: true,
-            message: 'Logout realizado com sucesso'
-        })
-    } catch (error) {
-        return handleError(reply, error)
-    }
+export function createAuthController(app: FastifyInstance) {
+    return {
+        login: (request: FastifyRequest) => {
+            const input = parse(loginSchema, request.body);
+            return authService.login(app, input.username, input.password);
+        },
+        setupStatus: () => authService.setupStatus(),
+        setup: async (request: FastifyRequest, reply: FastifyReply) =>
+            reply.status(201).send(await authService.setup(app, parse(setupSchema, request.body))),
+        refresh: (request: FastifyRequest) => authService.refresh(app, parse(refreshSchema, request.body).refreshToken),
+        logout: async (request: FastifyRequest, reply: FastifyReply) => {
+            await authService.logout(parse(refreshSchema, request.body).refreshToken, request.user.sub);
+            return reply.status(204).send();
+        },
+        me: (request: FastifyRequest) => authService.me(request.user.sub),
+    };
 }

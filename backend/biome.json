@@ -1,0 +1,26 @@
+{
+    "$schema": "https://biomejs.dev/schemas/2.5.5/schema.json",
+    "files": {
+        "includes": ["src/**/*.ts", "test/**/*.ts", "prisma/**/*.prisma"]
+    },
+    "formatter": {
+        "enabled": true,
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineWidth": 120
+    },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "preset": "recommended"
+        }
+    },
+    "overrides": [
+        {
+            "includes": ["src/**/*.routes.ts"],
+            "formatter": {
+                "lineWidth": 60
+            }
+        }
+    ]
+}
