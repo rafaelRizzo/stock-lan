@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LoaderCircle,
+  MessageCircle,
   Pencil,
   Plus,
   Search,
@@ -62,6 +63,12 @@ const statusLabels = {
   ACTIVE: "Ativos",
   INACTIVE: "Inativos",
   ARCHIVED: "Arquivados",
+}
+
+function whatsappLink(phone: string) {
+  const digits = phone.replace(/\D/g, "")
+  const withDdi = digits.startsWith("55") ? digits : `55${digits}`
+  return `https://wa.me/${withDdi}`
 }
 
 export function SuppliersPage() {
@@ -278,7 +285,20 @@ function SupplierRow({
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground">
-        {supplier.phone || "-"}
+        {supplier.phone ? (
+          <a
+            aria-label={`Chamar ${supplier.name} no WhatsApp`}
+            className="inline-flex items-center gap-1.5 hover:text-emerald-600"
+            href={whatsappLink(supplier.phone)}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <MessageCircle className="size-4" />
+            {supplier.phone}
+          </a>
+        ) : (
+          "-"
+        )}
       </TableCell>
       <TableCell>
         <StatusBadge status={supplier.status} />

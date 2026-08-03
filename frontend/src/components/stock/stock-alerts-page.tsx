@@ -101,7 +101,7 @@ function AlertRow({ batch }: { batch: StockAlertBatch }) {
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground">
-        {batch.supplier.name}
+        {batch.supplier?.name || "-"}
       </TableCell>
       <TableCell className="font-medium text-destructive">
         {formatQuantity(available)}

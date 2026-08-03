@@ -12,7 +12,7 @@ export type StockBatch = {
   obs: string | null
   status: BatchStatus
   product: { id: string; name: string }
-  supplier: { id: string; name: string }
+  supplier: { id: string; name: string } | null
   quantityType: { id: string; name: string }
 }
 export type StockBatchesParams = {

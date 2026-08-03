@@ -323,7 +323,7 @@ function EntryDialog({
   useEffect(() => {
     if (batch) {
       setProductId(batch.product.id)
-      setSupplierId(batch.supplier.id)
+      setSupplierId(batch.supplier?.id ?? "")
       setQuantityTypeId(batch.quantityType.id)
       setQuantityIn(String(batch.quantityIn).replace(".", ","))
       setPriceBuy(String(batch.priceBuy).replace(".", ","))
