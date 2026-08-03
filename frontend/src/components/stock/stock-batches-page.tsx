@@ -234,7 +234,7 @@ function BatchRow({
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground">
-        {batch.supplier.name}
+        {batch.supplier?.name || "-"}
       </TableCell>
       <TableCell>
         {number(batch.quantityIn)} {batch.quantityType.name}
