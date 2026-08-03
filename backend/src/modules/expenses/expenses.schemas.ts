@@ -16,4 +16,6 @@ export const expenseParamsSchema = z.object({ id: z.string().cuid() });
 export const expensesListSchema = paginationSchema.extend({
     search: z.string().trim().max(160).optional(),
     status: expenseStatusSchema.optional(),
+    dateFrom: z.coerce.date().optional(),
+    dateTo: z.coerce.date().optional(),
 });

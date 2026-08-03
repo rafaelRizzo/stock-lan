@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { invalidate, invalidatePrefix } from "../../lib/cache.js";
+import { dateRangeFilter } from "../../lib/date-range.js";
 import { parse } from "../../lib/errors.js";
 import { getSkip, paginate, paginationSchema } from "../../lib/pagination.js";
 import {
@@ -9,6 +10,7 @@ import {
     stockBatchParamsSchema,
     stockBatchSchema,
     stockBatchUpdateSchema,
+    stockMovementListSchema,
     stockProductParamsSchema,
 } from "./stock.schemas.js";
 import { stockService } from "./stock.service.js";
@@ -87,9 +89,11 @@ export const stockController = {
 
     listBatches: async (request: FastifyRequest) => {
         const query = parse(stockBatchListSchema, request.query);
+        const dateBuy = dateRangeFilter(query.dateFrom, query.dateTo);
         const result = await stockService.listBatches(
             {
                 ...(query.status ? { status: query.status } : {}),
+                ...(dateBuy ? { dateBuy } : {}),
                 ...(query.search
                     ? {
                           OR: [
@@ -112,8 +116,9 @@ export const stockController = {
     },
 
     listMovements: async (request: FastifyRequest) => {
-        const page = parse(paginationSchema, request.query);
-        const result = await stockService.listMovements(getSkip(page), page.limit);
-        return paginate(result.data, result.total, page);
+        const query = parse(stockMovementListSchema, request.query);
+        const createdAt = dateRangeFilter(query.dateFrom, query.dateTo);
+        const result = await stockService.listMovements(createdAt ? { createdAt } : {}, getSkip(query), query.limit);
+        return paginate(result.data, result.total, query);
     },
 };

@@ -1,4 +1,10 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react"
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react"
 import {
   CalendarDays,
   ChevronLeft,
@@ -15,6 +21,8 @@ import { ptBR } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
+import { SearchableSelect } from "@/components/shared/searchable-select"
+import { DateRangePicker } from "@/components/shared/date-range-picker"
 import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import {
   Dialog,
@@ -74,6 +82,8 @@ export function StockBatchesPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<BatchStatus | "">("")
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
   const [open, setOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<StockBatch | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<StockBatch | null>(null)
@@ -82,6 +92,8 @@ export function StockBatchesPage() {
     limit: pageSize,
     search: search || undefined,
     status: status || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
   })
   const { data: user } = useCurrentUser()
   const canManage = user?.role === "ADMIN" || user?.role === "MANAGER"
@@ -111,7 +123,7 @@ export function StockBatchesPage() {
           <div className="relative w-full sm:w-[28rem]">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-10 rounded-xl pl-9 shadow-none"
+              className="h-10 rounded-xl pl-9 text-sm shadow-none"
               placeholder="Buscar produto ou fornecedor"
               value={search}
               onChange={(event) => {
@@ -139,6 +151,15 @@ export function StockBatchesPage() {
               ))}
             </SelectContent>
           </Select>
+          <DateRangePicker
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onChange={(from, to) => {
+              setDateFrom(from)
+              setDateTo(to)
+              setPage(1)
+            }}
+          />
         </div>
         <Table>
           <TableHeader>
@@ -304,6 +325,22 @@ function EntryDialog({
     limit: 100,
     status: "ACTIVE",
   })
+  const productOptions = useMemo(
+    () =>
+      products.data?.data.map((item) => ({
+        value: item.id,
+        label: item.name,
+      })) ?? [],
+    [products.data]
+  )
+  const supplierOptions = useMemo(
+    () =>
+      suppliers.data?.data.map((item) => ({
+        value: item.id,
+        label: item.name,
+      })) ?? [],
+    [suppliers.data]
+  )
   const create = useCreateStockBatch()
   const update = useUpdateStockBatch()
   const editing = Boolean(batch)
@@ -399,45 +436,23 @@ function EntryDialog({
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
           <Field label="Produto">
-            <Select
+            <SearchableSelect
+              className={selectClass}
+              items={productOptions}
+              onValueChange={setProductId}
+              placeholder="Selecione o produto"
               value={productId}
-              onValueChange={(value) => setProductId(value ?? "")}
-            >
-              <SelectTrigger className={selectClass}>
-                <span>
-                  {products.data?.data.find((item) => item.id === productId)
-                    ?.name || "Selecione o produto"}
-                </span>
-              </SelectTrigger>
-              <SelectContent>
-                {products.data?.data.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Fornecedor">
-              <Select
+              <SearchableSelect
+                className={selectClass}
+                items={supplierOptions}
+                onValueChange={setSupplierId}
+                placeholder="Selecione"
                 value={supplierId}
-                onValueChange={(value) => setSupplierId(value ?? "")}
-              >
-                <SelectTrigger className={selectClass}>
-                  <span>
-                    {suppliers.data?.data.find((item) => item.id === supplierId)
-                      ?.name || "Selecione"}
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers.data?.data.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </Field>
             <Field label="Unidade">
               <Select

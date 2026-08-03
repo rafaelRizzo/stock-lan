@@ -13,9 +13,16 @@ type ExpenseInput = {
 };
 
 export const expensesService = {
-    list: async (input: { search?: string; status?: "PENDING" | "PAID" | "CANCELED"; skip: number; take: number }) => {
+    list: async (input: {
+        search?: string;
+        status?: "PENDING" | "PAID" | "CANCELED";
+        dueDate?: Prisma.DateTimeFilter;
+        skip: number;
+        take: number;
+    }) => {
         const where: Prisma.ExpenseWhereInput = {
             ...(input.status ? { status: input.status } : {}),
+            ...(input.dueDate ? { dueDate: input.dueDate } : {}),
             ...(input.search ? { name: { contains: input.search, mode: "insensitive" } } : {}),
         };
         const [data, total] = await Promise.all([

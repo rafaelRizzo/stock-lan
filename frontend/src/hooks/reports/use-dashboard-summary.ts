@@ -19,7 +19,12 @@ export function useDashboardSummary(
   })
 }
 
-export function useDebtReports(params: { page: number; limit: number }) {
+export function useDebtReports(params: {
+  page: number
+  limit: number
+  dateFrom?: string
+  dateTo?: string
+}) {
   return useQuery({
     queryKey: ["reports", "debts", params],
     queryFn: () => reportsService.debts(params),

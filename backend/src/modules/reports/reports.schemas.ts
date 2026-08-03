@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { paginationSchema } from "../../lib/pagination.js";
 
-export const debtsReportQuerySchema = paginationSchema;
+export const debtsReportQuerySchema = paginationSchema.extend({
+    dateFrom: z.coerce.date().optional(),
+    dateTo: z.coerce.date().optional(),
+});
 
 export const dashboardReportQuerySchema = z
     .object({

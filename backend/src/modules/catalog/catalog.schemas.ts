@@ -38,8 +38,8 @@ export const catalogResources = [
         delegate: "debtor",
         schema: z.object({
             name: z.string().trim().min(1).max(160),
-            phone: z.string().trim().max(30).optional(),
-            obs: z.string().trim().max(2000).optional(),
+            phone: z.string().trim().max(30).nullable().optional(),
+            obs: z.string().trim().max(2000).nullable().optional(),
             status: entityStatusSchema.optional(),
         }),
     },

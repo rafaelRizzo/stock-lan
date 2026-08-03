@@ -2,7 +2,12 @@ import { Prisma } from "@prisma/client";
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 
-type SupplierInput = { name: string; phone?: string; obs?: string; status?: "ACTIVE" | "INACTIVE" | "ARCHIVED" };
+type SupplierInput = {
+    name: string;
+    phone?: string | null;
+    obs?: string | null;
+    status?: "ACTIVE" | "INACTIVE" | "ARCHIVED";
+};
 
 export const suppliersService = {
     list: async (input: {

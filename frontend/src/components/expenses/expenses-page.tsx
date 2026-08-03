@@ -16,6 +16,7 @@ import { ptBR } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
+import { DateRangePicker } from "@/components/shared/date-range-picker"
 import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import {
   Dialog,
@@ -76,6 +77,8 @@ export function ExpensesPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<ExpenseStatus | "">("")
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
   const [open, setOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Expense | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null)
@@ -84,6 +87,8 @@ export function ExpensesPage() {
     limit: pageSize,
     search: search || undefined,
     status: status || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
   })
   const { data: user } = useCurrentUser()
   const canManage = user?.role === "ADMIN" || user?.role === "MANAGER"
@@ -117,7 +122,7 @@ export function ExpensesPage() {
           <div className="relative w-full sm:w-[28rem]">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-10 rounded-xl pl-9 shadow-none"
+              className="h-10 rounded-xl pl-9 text-sm shadow-none"
               placeholder="Buscar despesa"
               value={search}
               onChange={(event) => {
@@ -145,6 +150,16 @@ export function ExpensesPage() {
               ))}
             </SelectContent>
           </Select>
+          <DateRangePicker
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onChange={(from, to) => {
+              setDateFrom(from)
+              setDateTo(to)
+              setPage(1)
+            }}
+            placeholder="Vencimento"
+          />
         </div>
         <Table>
           <TableHeader>

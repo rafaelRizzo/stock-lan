@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { invalidate, invalidatePrefix } from "../../lib/cache.js";
+import { dateRangeFilter } from "../../lib/date-range.js";
 import { parse } from "../../lib/errors.js";
 import { getSkip, paginate } from "../../lib/pagination.js";
 import { expenseParamsSchema, expenseSchema, expensesListSchema } from "./expenses.schemas.js";
@@ -13,7 +14,14 @@ const invalidateExpenses = async () => {
 export const expensesController = {
     list: async (request: FastifyRequest) => {
         const query = parse(expensesListSchema, request.query);
-        const result = await expensesService.list({ ...query, skip: getSkip(query), take: query.limit });
+        const dueDate = dateRangeFilter(query.dateFrom, query.dateTo);
+        const result = await expensesService.list({
+            search: query.search,
+            status: query.status,
+            dueDate,
+            skip: getSkip(query),
+            take: query.limit,
+        });
         return paginate(result.data, result.total, query);
     },
     create: async (request: FastifyRequest, reply: FastifyReply) => {

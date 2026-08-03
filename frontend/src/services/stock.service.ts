@@ -20,6 +20,8 @@ export type StockBatchesParams = {
   limit: number
   search?: string
   status?: BatchStatus
+  dateFrom?: string
+  dateTo?: string
 }
 export type PaginatedStockBatches = {
   data: StockBatch[]
@@ -60,6 +62,12 @@ export type PaginatedStockMovements = {
   page: number
   limit: number
 }
+export type StockMovementsParams = {
+  page: number
+  limit: number
+  dateFrom?: string
+  dateTo?: string
+}
 export type CreateStockBatchInput = {
   supplierId: string
   productId: string
@@ -73,6 +81,7 @@ export type CreateStockBatchInput = {
 }
 export type AddNoCostStockInput = {
   productId: string
+  supplierId?: string
   quantityTypeId: string
   quantity: number
   obs?: string
@@ -89,7 +98,7 @@ export const stockService = {
     const { data } = await http.post<StockBatch>("/stock/batches", input)
     return data
   },
-  async listMovements(params: { page: number; limit: number }) {
+  async listMovements(params: StockMovementsParams) {
     const { data } = await http.get<PaginatedStockMovements>(
       "/stock/movements",
       { params }

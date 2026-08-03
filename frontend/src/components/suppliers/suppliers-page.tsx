@@ -404,8 +404,8 @@ function SupplierDialog({
     setError(null)
     const payload = {
       name: input.name.trim(),
-      phone: input.phone?.trim() || undefined,
-      obs: input.obs?.trim() || undefined,
+      phone: input.phone?.trim() || null,
+      obs: input.obs?.trim() || null,
     }
     try {
       if (supplier)

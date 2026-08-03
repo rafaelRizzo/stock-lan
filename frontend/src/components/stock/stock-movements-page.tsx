@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { DateRangePicker } from "@/components/shared/date-range-picker"
 import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import { useStockMovements } from "@/hooks/stock/use-stock-batches"
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
@@ -33,7 +34,14 @@ const labels: Record<StockMovementType, string> = {
 
 export function StockMovementsPage() {
   const [page, setPage] = useState(1)
-  const movements = useStockMovements({ page, limit: pageSize })
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
+  const movements = useStockMovements({
+    page,
+    limit: pageSize,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+  })
   return (
     <div className="mx-auto w-full max-w-7xl">
       <div className="mb-7">
@@ -48,6 +56,17 @@ export function StockMovementsPage() {
         </p>
       </div>
       <section className="rounded-2xl border border-[#e5e9e4] bg-background dark:border-border">
+        <div className="flex flex-col gap-3 border-b border-[#e5e9e4] p-4 sm:flex-row sm:items-center dark:border-border">
+          <DateRangePicker
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onChange={(from, to) => {
+              setDateFrom(from)
+              setDateTo(to)
+              setPage(1)
+            }}
+          />
+        </div>
         <Table>
           <TableHeader>
             <TableRow>

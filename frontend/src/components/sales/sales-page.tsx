@@ -1,9 +1,14 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react"
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react"
 import {
   ChevronLeft,
   ChevronRight,
   LoaderCircle,
-  Minus,
   Pencil,
   Plus,
   ReceiptText,
@@ -13,6 +18,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { SearchableSelect } from "@/components/shared/searchable-select"
 import {
   Dialog,
   DialogContent,
@@ -23,6 +29,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
   Select,
   SelectContent,
@@ -38,6 +45,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
+import { DateRangePicker } from "@/components/shared/date-range-picker"
 import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import { useDebtors } from "@/hooks/debtors/use-debtors"
 import { useCurrentUser } from "@/hooks/auth/use-current-user"
@@ -60,6 +68,12 @@ const statuses: Record<SaleStatus, string> = {
   DEBT: "A prazo",
   CANCELED: "Cancelada",
 }
+const saleStatusOptions: Exclude<SaleStatus, "CANCELED">[] = [
+  "PENDING",
+  "PAID",
+  "DEBT",
+  "FREE",
+]
 const paymentMethods: Record<PaymentMethod, string> = {
   CASH: "Dinheiro",
   PIX: "PIX",
@@ -74,6 +88,8 @@ export function SalesPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<SaleStatus | "">("")
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
   const [open, setOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Sale | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Sale | null>(null)
@@ -82,6 +98,8 @@ export function SalesPage() {
     limit: pageSize,
     search: search || undefined,
     status: status || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
   })
   const { data: user } = useCurrentUser()
   const canEdit = ["ADMIN", "MANAGER", "OPERATOR"].includes(user?.role ?? "")
@@ -113,7 +131,7 @@ export function SalesPage() {
           <div className="relative w-full sm:w-[28rem]">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-10 rounded-xl pl-9 shadow-none"
+              className="h-10 rounded-xl pl-9 text-sm shadow-none"
               placeholder="Buscar por cliente"
               value={search}
               onChange={(event) => {
@@ -141,6 +159,15 @@ export function SalesPage() {
               ))}
             </SelectContent>
           </Select>
+          <DateRangePicker
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onChange={(from, to) => {
+              setDateFrom(from)
+              setDateTo(to)
+              setPage(1)
+            }}
+          />
         </div>
         <Table>
           <TableHeader>
@@ -301,8 +328,20 @@ function SaleDialog({
   ])
   const [error, setError] = useState<string | null>(null)
   const products = useProducts({ page: 1, limit: 100, status: "ACTIVE" })
-  const sellableProducts = products.data?.data.filter(
-    (product) => product.type !== "RAW_MATERIAL"
+  const sellableProducts = useMemo(
+    () =>
+      products.data?.data.filter(
+        (product) => product.type !== "RAW_MATERIAL"
+      ) ?? [],
+    [products.data]
+  )
+  const productOptions = useMemo(
+    () =>
+      sellableProducts.map((product) => ({
+        value: product.id,
+        label: product.name,
+      })),
+    [sellableProducts]
   )
   const debtors = useDebtors({ page: 1, limit: 100, status: "ACTIVE" })
   const create = useCreateSale()
@@ -382,8 +421,12 @@ function SaleDialog({
   return (
     <Dialog
       open={visible}
-      onOpenChange={(value) => {
+      onOpenChange={(value, eventDetails) => {
         if (!value) {
+          if (eventDetails.reason === "outside-press") {
+            eventDetails.cancel()
+            return
+          }
           reset()
           onClose()
         }
@@ -400,7 +443,7 @@ function SaleDialog({
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Cliente">
+            <Field className="sm:col-span-2" label="Cliente">
               <Input
                 className="h-10 rounded-xl"
                 placeholder="Nome do cliente"
@@ -408,23 +451,26 @@ function SaleDialog({
                 onChange={(event) => setClientName(event.target.value)}
               />
             </Field>
-            <Field label="Situação">
-              <Select
-                value={status}
+            <Field className="sm:col-span-2" label="Situação">
+              <RadioGroup
+                className="grid grid-cols-2 gap-2 sm:grid-cols-4"
                 onValueChange={(value) =>
                   setStatus(value as Exclude<SaleStatus, "CANCELED">)
                 }
+                value={status}
               >
-                <SelectTrigger className={selectClass}>
-                  <span>{statuses[status]}</span>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PENDING">Pendente</SelectItem>
-                  <SelectItem value="PAID">Pago</SelectItem>
-                  <SelectItem value="DEBT">A prazo</SelectItem>
-                  <SelectItem value="FREE">Cortesia</SelectItem>
-                </SelectContent>
-              </Select>
+                {saleStatusOptions.map((value) => (
+                  <label
+                    className="flex h-10 cursor-pointer items-center justify-center rounded-xl border border-[#dce3de] bg-input/50 px-3 text-sm font-medium shadow-none transition-colors has-data-checked:border-transparent has-data-checked:bg-primary has-data-checked:text-primary-foreground dark:border-border"
+                    key={value}
+                  >
+                    <span className="sr-only">
+                      <RadioGroupItem value={value} />
+                    </span>
+                    {statuses[value]}
+                  </label>
+                ))}
+              </RadioGroup>
             </Field>
             {status === "DEBT" && (
               <Field label="Devedor">
@@ -497,39 +543,28 @@ function SaleDialog({
                 <span />
               </div>
               {items.map((item, index) => {
-                const selectedProduct = products.data?.data.find(
-                  (product) => product.id === item.productId
-                )
                 return (
                   <div
                     className="grid gap-2 sm:grid-cols-[1fr_100px_130px_32px]"
                     key={index}
                   >
-                    <Select
-                      value={item.productId}
+                    <SearchableSelect
+                      className={selectClass}
+                      items={productOptions}
                       onValueChange={(value) => {
-                        const product = sellableProducts?.find(
+                        const product = sellableProducts.find(
                           (candidate) => candidate.id === value
                         )
                         updateItem(index, {
-                          productId: value ?? "",
+                          productId: value,
                           priceUnit: product
                             ? String(product.priceSell).replace(".", ",")
                             : item.priceUnit,
                         })
                       }}
-                    >
-                      <SelectTrigger className={selectClass}>
-                        <span>{selectedProduct?.name || "Selecione o produto"}</span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sellableProducts?.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Selecione o produto"
+                      value={item.productId}
+                    />
                     <Input
                       aria-label="Quantidade"
                       className="h-10 rounded-xl"
@@ -560,7 +595,7 @@ function SaleDialog({
                     />
                     <Button
                       aria-label="Remover item"
-                      className="self-center"
+                      className="self-center text-muted-foreground hover:text-destructive"
                       disabled={items.length === 1}
                       onClick={() =>
                         setItems((current) =>
@@ -573,7 +608,7 @@ function SaleDialog({
                       type="button"
                       variant="ghost"
                     >
-                      <Minus className="size-4" />
+                      <Trash2 className="size-4" />
                     </Button>
                   </div>
                 )
@@ -670,9 +705,17 @@ function DeleteSaleDialog({
   )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  className,
+  label,
+  children,
+}: {
+  className?: string
+  label: string
+  children: ReactNode
+}) {
   return (
-    <div className="space-y-1.5">
+    <div className={`space-y-1.5 ${className ?? ""}`}>
       <Label>{label}</Label>
       {children}
     </div>

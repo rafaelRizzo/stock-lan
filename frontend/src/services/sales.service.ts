@@ -24,6 +24,8 @@ export type SalesParams = {
   limit: number
   search?: string
   status?: SaleStatus
+  dateFrom?: string
+  dateTo?: string
 }
 export type PaginatedSales = {
   data: Sale[]
