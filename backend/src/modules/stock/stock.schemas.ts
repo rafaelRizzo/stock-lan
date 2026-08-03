@@ -18,6 +18,7 @@ export const stockBatchUpdateSchema = stockBatchSchema;
 
 export const noCostStockSchema = z.object({
     productId: z.string().cuid(),
+    supplierId: z.string().cuid().optional(),
     quantityTypeId: z.string().cuid(),
     quantity: z.coerce.number().positive().max(MAX_QUANTITY),
     obs: z.string().trim().max(2000).optional(),
@@ -38,4 +39,10 @@ export const stockProductParamsSchema = z.object({ productId: z.string().cuid() 
 export const stockBatchListSchema = paginationSchema.extend({
     search: z.string().trim().max(160).optional(),
     status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
+    dateFrom: z.coerce.date().optional(),
+    dateTo: z.coerce.date().optional(),
+});
+export const stockMovementListSchema = paginationSchema.extend({
+    dateFrom: z.coerce.date().optional(),
+    dateTo: z.coerce.date().optional(),
 });

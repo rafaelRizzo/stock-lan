@@ -127,9 +127,9 @@ export const reportsService = {
         });
     },
 
-    debts: async (page: number, limit: number) =>
-        getOrSetLocal(`reports:debts:${page}:${limit}`, 30, async () => {
-            const where = { status: "DEBT" as const };
+    debts: async (page: number, limit: number, createdAt?: Prisma.DateTimeFilter) =>
+        getOrSetLocal(`reports:debts:${page}:${limit}:${JSON.stringify(createdAt ?? null)}`, 30, async () => {
+            const where = { status: "DEBT" as const, ...(createdAt ? { createdAt } : {}) };
             const [data, total] = await Promise.all([
                 prisma.sale.findMany({
                     where,

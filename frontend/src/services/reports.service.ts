@@ -48,7 +48,12 @@ export const reportsService = {
     })
     return data
   },
-  async debts(params: { page: number; limit: number }) {
+  async debts(params: {
+    page: number
+    limit: number
+    dateFrom?: string
+    dateTo?: string
+  }) {
     const { data } = await http.get<PaginatedDebtReports>("/reports/debts", {
       params,
     })

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import {
   Archive,
   ArchiveRestore,
@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PermanentDeleteDialog } from "@/components/shared/permanent-delete-dialog"
+import { SearchableSelect } from "@/components/shared/searchable-select"
 import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import {
   Dialog,
@@ -56,6 +57,7 @@ import {
 import { useCurrentUser } from "@/hooks/auth/use-current-user"
 import { useQuantityTypes } from "@/hooks/quantity-types/use-quantity-types"
 import { useAddNoCostStock } from "@/hooks/stock/use-stock-batches"
+import { useSuppliers } from "@/hooks/suppliers/use-suppliers"
 import { DEFAULT_PAGE_SIZE, PRODUCT_TYPE_LABELS } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type { Product, ProductStatus, ProductType } from "@/services/products.service"
@@ -750,14 +752,25 @@ function AddStockDialog({
 }) {
   const [quantity, setQuantity] = useState("")
   const [quantityTypeId, setQuantityTypeId] = useState("")
+  const [supplierId, setSupplierId] = useState("")
   const [obs, setObs] = useState("")
   const [error, setError] = useState<string | null>(null)
   const quantityTypes = useQuantityTypes({ page: 1, limit: 100, status: "ACTIVE" })
+  const suppliers = useSuppliers({ page: 1, limit: 100, status: "ACTIVE" })
+  const supplierOptions = useMemo(
+    () =>
+      suppliers.data?.data.map((item) => ({
+        value: item.id,
+        label: item.name,
+      })) ?? [],
+    [suppliers.data]
+  )
   const addStock = useAddNoCostStock()
   useEffect(() => {
     if (product) {
       setQuantity("")
       setQuantityTypeId("")
+      setSupplierId("")
       setObs("")
       setError(null)
     }
@@ -773,6 +786,7 @@ function AddStockDialog({
     try {
       await addStock.mutateAsync({
         productId: product.id,
+        supplierId: supplierId || undefined,
         quantityTypeId,
         quantity: value,
         obs: obs.trim() || undefined,
@@ -822,6 +836,20 @@ function AddStockDialog({
                 ))}
               </SelectContent>
             </Select>
+          </label>
+          <label className="grid gap-2 text-sm font-medium">
+            Fornecedor (opcional)
+            <SearchableSelect
+              className="h-10 w-full rounded-xl border-[#dce3de] bg-background shadow-none dark:border-border"
+              items={supplierOptions}
+              onValueChange={setSupplierId}
+              placeholder="Bonificação, produção própria..."
+              value={supplierId}
+            />
+            <p className="text-xs text-muted-foreground">
+              Informe quando o produto veio de um fornecedor de graça
+              (bonificação). Deixe em branco para produção própria.
+            </p>
           </label>
           <label className="grid gap-2 text-sm font-medium">
             Observação

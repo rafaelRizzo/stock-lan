@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { DateRangePicker } from "@/components/shared/date-range-picker"
 import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import {
   Dialog,
@@ -53,8 +54,15 @@ const paymentMethods: Record<PaymentMethod, string> = {
 
 export function DebtReportsPage() {
   const [page, setPage] = useState(1)
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
   const [paymentTarget, setPaymentTarget] = useState<DebtReport | null>(null)
-  const debts = useDebtReports({ page, limit: pageSize })
+  const debts = useDebtReports({
+    page,
+    limit: pageSize,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+  })
   const totalOutstanding = debts.data?.data.reduce(
     (total, debt) => total + balanceOf(debt),
     0
@@ -85,6 +93,17 @@ export function DebtReportsPage() {
       </div>
 
       <section className="overflow-hidden rounded-2xl border border-[#e5e9e4] bg-background dark:border-border">
+        <div className="flex flex-col gap-3 border-b border-[#e5e9e4] p-4 sm:flex-row sm:items-center dark:border-border">
+          <DateRangePicker
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onChange={(from, to) => {
+              setDateFrom(from)
+              setDateTo(to)
+              setPage(1)
+            }}
+          />
+        </div>
         <Table>
           <TableHeader>
             <TableRow>

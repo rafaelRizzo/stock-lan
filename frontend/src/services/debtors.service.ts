@@ -23,7 +23,11 @@ export type DebtorsParams = {
   status?: DebtorStatus
   includeArchived?: boolean
 }
-export type DebtorInput = { name: string; phone?: string; obs?: string }
+export type DebtorInput = {
+  name: string
+  phone?: string | null
+  obs?: string | null
+}
 
 export const debtorsService = {
   async list(params: DebtorsParams) {

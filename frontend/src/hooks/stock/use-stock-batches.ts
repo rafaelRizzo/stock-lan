@@ -4,6 +4,7 @@ import {
   type AddNoCostStockInput,
   type CreateStockBatchInput,
   type StockBatchesParams,
+  type StockMovementsParams,
 } from "@/services/stock.service"
 import { notify } from "@/lib/toast"
 
@@ -14,7 +15,7 @@ export function useStockBatches(params: StockBatchesParams) {
   })
 }
 
-export function useStockMovements(params: { page: number; limit: number }) {
+export function useStockMovements(params: StockMovementsParams) {
   return useQuery({
     queryKey: ["stock", "movements", params],
     queryFn: () => stockService.listMovements(params),

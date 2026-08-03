@@ -5,12 +5,13 @@ import { prisma } from "../../lib/prisma.js";
 
 export async function createNoCostStockBatch(
     tx: Prisma.TransactionClient,
-    input: { productId: string; quantityTypeId: string; quantity: number; obs?: string },
+    input: { productId: string; supplierId?: string; quantityTypeId: string; quantity: number; obs?: string },
     userId: string,
 ) {
     const batch = await tx.stockBatch.create({
         data: {
             productId: input.productId,
+            supplierId: input.supplierId,
             quantityTypeId: input.quantityTypeId,
             quantityIn: input.quantity,
             quantityLeft: input.quantity,
@@ -35,7 +36,7 @@ export async function createNoCostStockBatch(
 
 export const stockService = {
     addNoCostStock: async (
-        input: { productId: string; quantityTypeId: string; quantity: number; obs?: string },
+        input: { productId: string; supplierId?: string; quantityTypeId: string; quantity: number; obs?: string },
         userId: string,
     ) => prisma.$transaction((tx) => createNoCostStockBatch(tx, input, userId)),
 
@@ -196,10 +197,12 @@ export const stockService = {
             return { data: alerts.slice(skip, skip + take), total: alerts.length };
         }),
 
-    listMovements: async (skip: number, take: number) =>
-        getOrSetLocal(`stock:movements:${skip}:${take}`, 15, async () => {
+    listMovements: async (where: Prisma.StockMovementWhereInput, skip: number, take: number) => {
+        const key = `stock:movements:${JSON.stringify({ where, skip, take })}`;
+        return getOrSetLocal(key, 15, async () => {
             const [data, total] = await Promise.all([
                 prisma.stockMovement.findMany({
+                    where,
                     include: {
                         product: true,
                         stockBatch: true,
@@ -209,8 +212,9 @@ export const stockService = {
                     skip,
                     take,
                 }),
-                prisma.stockMovement.count(),
+                prisma.stockMovement.count({ where }),
             ]);
             return { data, total };
-        }),
+        });
+    },
 };

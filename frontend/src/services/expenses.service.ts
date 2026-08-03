@@ -21,6 +21,8 @@ export type ExpensesParams = {
   limit: number
   search?: string
   status?: ExpenseStatus
+  dateFrom?: string
+  dateTo?: string
 }
 export type PaginatedExpenses = {
   data: Expense[]

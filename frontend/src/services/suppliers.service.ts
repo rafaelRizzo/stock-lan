@@ -23,7 +23,11 @@ export type SuppliersParams = {
   status?: SupplierStatus
   includeArchived?: boolean
 }
-export type SupplierInput = { name: string; phone?: string; obs?: string }
+export type SupplierInput = {
+  name: string
+  phone?: string | null
+  obs?: string | null
+}
 
 export const suppliersService = {
   async list(params: SuppliersParams) {
