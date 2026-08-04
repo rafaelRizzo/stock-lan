@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -655,6 +656,7 @@ function DeleteSaleDialog({
 }) {
   const remove = useDeleteSale()
   const [error, setError] = useState<string | null>(null)
+  const confirmRef = useRef<HTMLButtonElement>(null)
   useEffect(() => setError(null), [sale])
   async function confirm() {
     if (!sale) return
@@ -667,7 +669,7 @@ function DeleteSaleDialog({
   }
   return (
     <Dialog open={Boolean(sale)} onOpenChange={(value) => !value && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" initialFocus={confirmRef}>
         <DialogHeader>
           <DialogTitle>Excluir venda?</DialogTitle>
           <DialogDescription>
@@ -689,6 +691,7 @@ function DeleteSaleDialog({
             Cancelar
           </Button>
           <Button
+            ref={confirmRef}
             disabled={remove.isPending}
             onClick={confirm}
             type="button"

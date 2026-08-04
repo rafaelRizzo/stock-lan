@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import {
   Archive,
   ArchiveRestore,
@@ -889,9 +889,10 @@ function ArchiveProductDialog({
   pending: boolean
   product: Product | null
 }) {
+  const confirmRef = useRef<HTMLButtonElement>(null)
   return (
     <Dialog onOpenChange={(open) => !open && onClose()} open={Boolean(product)}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" initialFocus={confirmRef}>
         <DialogHeader>
           <DialogTitle>Arquivar produto?</DialogTitle>
           <DialogDescription>
@@ -904,7 +905,12 @@ function ArchiveProductDialog({
           <Button onClick={onClose} variant="outline">
             Cancelar
           </Button>
-          <Button disabled={pending} onClick={onConfirm} variant="destructive">
+          <Button
+            ref={confirmRef}
+            disabled={pending}
+            onClick={onConfirm}
+            variant="destructive"
+          >
             {pending && <LoaderCircle className="size-4 animate-spin" />}
             Arquivar
           </Button>

@@ -1,4 +1,10 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react"
 import {
   CalendarDays,
   CheckCircle2,
@@ -556,6 +562,7 @@ function DeleteExpenseDialog({
 }) {
   const remove = useDeleteExpense()
   const [error, setError] = useState<string | null>(null)
+  const confirmRef = useRef<HTMLButtonElement>(null)
   useEffect(() => setError(null), [expense])
   async function confirm() {
     if (!expense) return
@@ -571,7 +578,7 @@ function DeleteExpenseDialog({
       open={Boolean(expense)}
       onOpenChange={(value) => !value && onClose()}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" initialFocus={confirmRef}>
         <DialogHeader>
           <DialogTitle>Excluir despesa?</DialogTitle>
           <DialogDescription>
@@ -588,6 +595,7 @@ function DeleteExpenseDialog({
             Cancelar
           </Button>
           <Button
+            ref={confirmRef}
             disabled={remove.isPending}
             onClick={confirm}
             type="button"
