@@ -41,7 +41,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: redis:8.4-alpine
     container_name: stock-lan-redis
     restart: unless-stopped
     volumes:
