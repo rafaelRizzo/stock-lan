@@ -2,6 +2,7 @@ services:
   api:
     build: ./backend
     container_name: stock-lan-back-end
+    restart: unless-stopped
     env_file:
       - ./backend/.env
     depends_on:
@@ -19,12 +20,14 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL}
     container_name: stock-lan-front-end
+    restart: unless-stopped
     networks:
       - proxy
 
   stock-postgres:
     image: postgres:16-alpine
     container_name: stock-lan-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: stock
       POSTGRES_PASSWORD: stock
@@ -40,6 +43,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: stock-lan-redis
+    restart: unless-stopped
     volumes:
       - stock_redis_data:/data
     healthcheck:

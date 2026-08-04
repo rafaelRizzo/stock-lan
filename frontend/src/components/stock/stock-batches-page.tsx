@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -612,6 +613,7 @@ function DeleteEntryDialog({
 }) {
   const remove = useDeleteStockBatch()
   const [error, setError] = useState<string | null>(null)
+  const confirmRef = useRef<HTMLButtonElement>(null)
   useEffect(() => setError(null), [batch])
   async function confirm() {
     if (!batch) return
@@ -624,7 +626,7 @@ function DeleteEntryDialog({
   }
   return (
     <Dialog open={Boolean(batch)} onOpenChange={(value) => !value && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" initialFocus={confirmRef}>
         <DialogHeader>
           <DialogTitle>Excluir entrada?</DialogTitle>
           <DialogDescription>
@@ -644,6 +646,7 @@ function DeleteEntryDialog({
             Cancelar
           </Button>
           <Button
+            ref={confirmRef}
             disabled={remove.isPending}
             onClick={confirm}
             type="button"

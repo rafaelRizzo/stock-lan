@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,6 +26,7 @@ export function PermanentDeleteDialog({
 }) {
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const confirmRef = useRef<HTMLButtonElement>(null)
   async function confirm() {
     try {
       setPending(true)
@@ -40,7 +41,7 @@ export function PermanentDeleteDialog({
   }
   return (
     <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" initialFocus={confirmRef}>
         <DialogHeader>
           <DialogTitle>Excluir {resource}?</DialogTitle>
           <DialogDescription>
@@ -62,6 +63,7 @@ export function PermanentDeleteDialog({
             Cancelar
           </Button>
           <Button
+            ref={confirmRef}
             disabled={pending}
             onClick={confirm}
             type="button"

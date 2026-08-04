@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import {
   Archive,
   ArchiveRestore,
@@ -625,12 +625,13 @@ function ArchiveDialog({
   pending: boolean
   template: ExpenseTemplate | null
 }) {
+  const confirmRef = useRef<HTMLButtonElement>(null)
   return (
     <Dialog
       onOpenChange={(open) => !open && onClose()}
       open={Boolean(template)}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" initialFocus={confirmRef}>
         <DialogHeader>
           <DialogTitle>Arquivar modelo?</DialogTitle>
           <DialogDescription>
@@ -641,7 +642,13 @@ function ArchiveDialog({
           <Button onClick={onClose} type="button" variant="outline">
             Cancelar
           </Button>
-          <Button disabled={pending} onClick={onConfirm} type="button">
+          <Button
+            ref={confirmRef}
+            disabled={pending}
+            onClick={onConfirm}
+            type="button"
+            variant="destructive"
+          >
             {pending && <LoaderCircle className="size-4 animate-spin" />}
             Arquivar
           </Button>
