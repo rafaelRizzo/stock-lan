@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { getOrSetLocal } from "../../lib/cache.js";
+import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 
 const cashFlowDays = 10;
@@ -127,19 +128,108 @@ export const reportsService = {
         });
     },
 
-    debts: async (page: number, limit: number, createdAt?: Prisma.DateTimeFilter) =>
-        getOrSetLocal(`reports:debts:${page}:${limit}:${JSON.stringify(createdAt ?? null)}`, 30, async () => {
-            const where = { status: "DEBT" as const, ...(createdAt ? { createdAt } : {}) };
-            const [data, total] = await Promise.all([
-                prisma.sale.findMany({
+    debts: async (page: number, limit: number, createdAt?: Prisma.DateTimeFilter, debtorId?: string) =>
+        getOrSetLocal(
+            `reports:debts:${page}:${limit}:${debtorId ?? ""}:${JSON.stringify(createdAt ?? null)}`,
+            30,
+            async () => {
+                const where = {
+                    status: "DEBT" as const,
+                    ...(createdAt ? { createdAt } : {}),
+                    ...(debtorId ? { debtorId } : {}),
+                };
+                const sales = await prisma.sale.findMany({
                     where,
                     include: { debtor: true, payments: true },
                     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-                    skip: (page - 1) * limit,
-                    take: limit,
-                }),
-                prisma.sale.count({ where }),
-            ]);
-            return { data, total };
+                });
+                const groups = new Map<
+                    string,
+                    {
+                        id: string;
+                        debtor: { id: string; name: string } | null;
+                        clientName: string | null;
+                        total: Prisma.Decimal;
+                        salesCount: number;
+                        latestCreatedAt: Date;
+                        payments: Array<{ id: string; amount: Prisma.Decimal; method: string; paidAt: Date }>;
+                    }
+                >();
+                for (const sale of sales) {
+                    const key = sale.debtorId ?? `sale:${sale.id}`;
+                    const group = groups.get(key) ?? {
+                        id: key,
+                        debtor: sale.debtor ? { id: sale.debtor.id, name: sale.debtor.name } : null,
+                        clientName: sale.clientName,
+                        total: new Prisma.Decimal(0),
+                        salesCount: 0,
+                        latestCreatedAt: sale.createdAt,
+                        payments: [],
+                    };
+                    group.total = group.total.add(sale.total);
+                    group.salesCount += 1;
+                    group.payments.push(...sale.payments);
+                    if (sale.createdAt > group.latestCreatedAt) group.latestCreatedAt = sale.createdAt;
+                    groups.set(key, group);
+                }
+                const all = Array.from(groups.values()).sort(
+                    (a, b) => b.latestCreatedAt.getTime() - a.latestCreatedAt.getTime(),
+                );
+                const total = all.length;
+                const data = all.slice((page - 1) * limit, (page - 1) * limit + limit);
+                return { data, total };
+            },
+        ),
+
+    receiveDebtorPayment: async (
+        debtorId: string,
+        amount: number,
+        method: "CASH" | "PIX" | "CARD" | "BANK_TRANSFER" | "OTHER",
+        obs: string | undefined,
+        userId: string,
+    ) =>
+        prisma.$transaction(async (tx) => {
+            const sales = await tx.sale.findMany({
+                where: { debtorId, status: "DEBT" },
+                include: { payments: true },
+                orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            });
+            if (sales.length === 0) throw new AppError(404, "No outstanding debt for this debtor");
+            const balances = sales.map((sale) => {
+                const paid = sale.payments.reduce((total, payment) => total.add(payment.amount), new Prisma.Decimal(0));
+                return { sale, balance: sale.total.sub(paid) };
+            });
+            const totalBalance = balances.reduce((total, entry) => total.add(entry.balance), new Prisma.Decimal(0));
+            let remaining = new Prisma.Decimal(amount);
+            if (remaining.greaterThan(totalBalance)) throw new AppError(409, "Payment exceeds total debt");
+            const paidAt = new Date();
+            const payments = [];
+            for (const { sale, balance } of balances) {
+                if (remaining.lessThanOrEqualTo(0)) break;
+                if (balance.lessThanOrEqualTo(0)) continue;
+                const take = Prisma.Decimal.min(balance, remaining);
+                const payment = await tx.payment.create({
+                    data: { saleId: sale.id, amount: take, method, obs, paidAt, createdUserId: userId },
+                });
+                if (take.equals(balance)) await tx.sale.update({ where: { id: sale.id }, data: { status: "PAID" } });
+                remaining = remaining.sub(take);
+                payments.push(payment);
+            }
+            return payments;
+        }),
+
+    debtorStatement: async (debtorId: string) =>
+        getOrSetLocal(`reports:debtor-statement:${debtorId}`, 30, async () => {
+            const debtor = await prisma.debtor.findUnique({ where: { id: debtorId } });
+            if (!debtor) throw new AppError(404, "Debtor not found");
+            const sales = await prisma.sale.findMany({
+                where: { debtorId, status: { not: "CANCELED" } },
+                include: {
+                    payments: { orderBy: { paidAt: "asc" } },
+                    items: { include: { product: { select: { name: true } } }, orderBy: { createdAt: "asc" } },
+                },
+                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            });
+            return { debtor, sales };
         }),
 };

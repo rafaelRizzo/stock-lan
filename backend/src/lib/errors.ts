@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import type { FastifyError, FastifyRequest } from "fastify";
 import type { ZodType } from "zod";
 
@@ -8,6 +9,13 @@ export class AppError extends Error {
     ) {
         super(message);
     }
+}
+
+export function isUniqueConstraintError(error: unknown, field?: string): boolean {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") return false;
+    if (!field) return true;
+    const target = error.meta?.target;
+    return Array.isArray(target) ? target.includes(field) : target === field;
 }
 
 export function parse<T>(schema: ZodType<T>, value: unknown): T {

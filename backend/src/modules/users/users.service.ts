@@ -1,5 +1,5 @@
 import argon2 from "argon2";
-import { AppError } from "../../lib/errors.js";
+import { AppError, isUniqueConstraintError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 
 export const usersService = {
@@ -34,20 +34,32 @@ export const usersService = {
     },
     create: async (input: { password: string; [key: string]: unknown }, createdUserId: string) => {
         const { password, ...data } = input;
-        return prisma.user.create({
-            data: { ...data, passwordHash: await argon2.hash(password), createdUserId } as never,
-            omit: { passwordHash: true },
-        });
+        try {
+            return await prisma.user.create({
+                data: { ...data, passwordHash: await argon2.hash(password), createdUserId } as never,
+                omit: { passwordHash: true },
+            });
+        } catch (error) {
+            if (isUniqueConstraintError(error, "username")) throw new AppError(409, "Username already exists");
+            if (isUniqueConstraintError(error, "name")) throw new AppError(409, "User already exists");
+            throw error;
+        }
     },
     update: async (id: string, input: { password?: string; [key: string]: unknown }) => {
         const { password, ...data } = input;
         const user = await prisma.user.findUnique({ where: { id } });
         if (!user) throw new AppError(404, "User not found");
-        return prisma.user.update({
-            where: { id },
-            data: { ...data, ...(password ? { passwordHash: await argon2.hash(password) } : {}) } as never,
-            omit: { passwordHash: true },
-        });
+        try {
+            return await prisma.user.update({
+                where: { id },
+                data: { ...data, ...(password ? { passwordHash: await argon2.hash(password) } : {}) } as never,
+                omit: { passwordHash: true },
+            });
+        } catch (error) {
+            if (isUniqueConstraintError(error, "username")) throw new AppError(409, "Username already exists");
+            if (isUniqueConstraintError(error, "name")) throw new AppError(409, "User already exists");
+            throw error;
+        }
     },
     archive: async (id: string, currentUserId: string) => {
         if (id === currentUserId) throw new AppError(409, "Cannot archive the current user");

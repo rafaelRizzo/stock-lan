@@ -22,6 +22,8 @@ type RetriableRequest = InternalAxiosRequestConfig & { _retry?: boolean }
 const apiErrorMessages: Record<string, string> = {
   "Canceled sale cannot be edited": "A venda cancelada não pode ser editada.",
   "Cannot archive the current user": "Não é possível arquivar o usuário atual.",
+  "Debtor already exists": "Já existe um devedor com esse nome.",
+  "Expense template already exists": "Já existe um modelo de despesa com esse nome.",
   Forbidden: "Você não tem permissão para esta ação.",
   "Initial setup already completed": "A configuração inicial já foi concluída.",
   "Insufficient stock": "Estoque insuficiente.",
@@ -30,7 +32,9 @@ const apiErrorMessages: Record<string, string> = {
   "Invalid username or password": "Usuário ou senha inválidos.",
   "Not implemented": "Este recurso ainda não está disponível.",
   "Payment exceeds sale total": "O pagamento excede o total da venda.",
+  "Product already exists": "Já existe um produto com esse nome.",
   "Product not found": "Produto não encontrado.",
+  "Quantity type already exists": "Já existe um tipo de quantidade com esse nome.",
   "Resource cannot be deleted because it has linked records":
     "O registro não pode ser excluído porque possui vínculos.",
   "Resource not found": "Registro não encontrado.",
@@ -42,11 +46,14 @@ const apiErrorMessages: Record<string, string> = {
   "Stock batch cannot be edited after stock movements":
     "O lote não pode ser editado após movimentações de estoque.",
   "Stock batch not found": "Lote de estoque não encontrado.",
+  "Supplier already exists": "Já existe um fornecedor com esse nome.",
   "Supplier cannot be deleted because it has linked records":
     "O fornecedor não pode ser excluído porque possui vínculos.",
   "Supplier not found": "Fornecedor não encontrado.",
   Unauthorized: "Sua sessão expirou. Entre novamente.",
+  "User already exists": "Já existe um usuário com esse nome.",
   "User not found": "Usuário não encontrado.",
+  "Username already exists": "Esse nome de usuário já está em uso.",
   "debtorId is required for debt sales":
     "Selecione o devedor para uma venda fiada.",
   "paymentMethod is required for paid sales":

@@ -23,7 +23,7 @@ export type DebtReport = {
   id: string
   clientName: string | null
   total: string | number
-  createdAt: string
+  salesCount: number
   debtor: { id: string; name: string } | null
   payments: Array<{
     id: string
@@ -41,6 +41,32 @@ export type PaginatedDebtReports = {
   limit: number
 }
 
+export type DebtorStatementSale = {
+  id: string
+  clientName: string | null
+  total: string | number
+  status: "PENDING" | "PAID" | "FREE" | "DEBT" | "CANCELED"
+  createdAt: string
+  payments: Array<{
+    id: string
+    amount: string | number
+    method: "CASH" | "PIX" | "CARD" | "BANK_TRANSFER" | "OTHER"
+    paidAt: string
+  }>
+  items: Array<{
+    id: string
+    quantity: string | number
+    priceUnit: string | number
+    priceTotal: string | number
+    product: { name: string }
+  }>
+}
+
+export type DebtorStatement = {
+  debtor: { id: string; name: string; phone: string | null }
+  sales: DebtorStatementSale[]
+}
+
 export const reportsService = {
   async dashboard(params?: DashboardSummaryParams) {
     const { data } = await http.get<DashboardSummary>("/reports/dashboard", {
@@ -53,10 +79,31 @@ export const reportsService = {
     limit: number
     dateFrom?: string
     dateTo?: string
+    debtorId?: string
   }) {
     const { data } = await http.get<PaginatedDebtReports>("/reports/debts", {
       params,
     })
+    return data
+  },
+  async debtorStatement(debtorId: string) {
+    const { data } = await http.get<DebtorStatement>(
+      `/reports/debtors/${debtorId}/statement`
+    )
+    return data
+  },
+  async receiveDebtPayment(
+    debtorId: string,
+    input: {
+      amount: number
+      method: "CASH" | "PIX" | "CARD" | "BANK_TRANSFER" | "OTHER"
+      obs?: string
+    }
+  ) {
+    const { data } = await http.post(
+      `/reports/debtors/${debtorId}/receive`,
+      input
+    )
     return data
   },
 }
