@@ -72,6 +72,8 @@ test("registers sales and reports routes", async () => {
         "/sales/:id/cancel",
         "/reports/dashboard",
         "/reports/debts",
+        "/reports/debtors/:debtorId/statement",
+        "/reports/debtors/:debtorId/receive",
     ]);
 });
 

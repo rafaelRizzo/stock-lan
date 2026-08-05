@@ -46,6 +46,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { DateRangePicker } from "@/components/shared/date-range-picker"
 import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import { useDebtors } from "@/hooks/debtors/use-debtors"
@@ -105,6 +111,11 @@ export function SalesPage() {
   const { data: user } = useCurrentUser()
   const canEdit = ["ADMIN", "MANAGER", "OPERATOR"].includes(user?.role ?? "")
   const canDelete = ["ADMIN", "MANAGER"].includes(user?.role ?? "")
+  const products = useProducts({ page: 1, limit: 100, includeArchived: true })
+  const productNames = useMemo(
+    () => new Map(products.data?.data.map((product) => [product.id, product.name])),
+    [products.data]
+  )
 
   return (
     <div className="mx-auto w-full max-w-7xl">
@@ -201,6 +212,7 @@ export function SalesPage() {
                   key={sale.id}
                   onDelete={setDeleteTarget}
                   onEdit={setEditTarget}
+                  productNames={productNames}
                   sale={sale}
                 />
               ))
@@ -235,12 +247,14 @@ function SaleRow({
   canDelete,
   onEdit,
   onDelete,
+  productNames,
 }: {
   sale: Sale
   canEdit: boolean
   canDelete: boolean
   onEdit: (sale: Sale) => void
   onDelete: (sale: Sale) => void
+  productNames: Map<string, string>
 }) {
   const styles: Record<SaleStatus, string> = {
     PAID: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
@@ -270,7 +284,24 @@ function SaleRow({
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground">
-        {sale.items.length} {sale.items.length === 1 ? "item" : "itens"}
+        <TooltipProvider delay={50}>
+          <Tooltip>
+            <TooltipTrigger className="cursor-default underline decoration-dotted underline-offset-4">
+              {sale.items.length} {sale.items.length === 1 ? "item" : "itens"}
+            </TooltipTrigger>
+            <TooltipContent className="max-w-sm">
+              <ul className="space-y-0.5">
+                {sale.items.map((item) => (
+                  <li key={item.id}>
+                    {String(item.quantity).replace(".", ",")}x{" "}
+                    {productNames.get(item.productId) ?? "Produto"}:{" "}
+                    {currency(item.priceTotal)}
+                  </li>
+                ))}
+              </ul>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </TableCell>
       <TableCell className="font-medium">{currency(sale.total)}</TableCell>
       <TableCell>
@@ -422,12 +453,8 @@ function SaleDialog({
   return (
     <Dialog
       open={visible}
-      onOpenChange={(value, eventDetails) => {
+      onOpenChange={(value) => {
         if (!value) {
-          if (eventDetails.reason === "outside-press") {
-            eventDetails.cancel()
-            return
-          }
           reset()
           onClose()
         }

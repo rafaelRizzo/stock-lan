@@ -376,6 +376,10 @@ function EntryDialog({
     } else if (open) reset()
     setError(null)
   }, [batch, open])
+  useEffect(() => {
+    if (!editing && !quantityTypeId && quantityTypes.data?.data.length === 1)
+      setQuantityTypeId(quantityTypes.data.data[0].id)
+  }, [quantityTypes.data, quantityTypeId, editing])
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const quantity = Number(quantityIn.replace(",", "."))

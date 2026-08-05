@@ -18,11 +18,13 @@ export const catalogResources = [
     {
         path: "quantity-types",
         delegate: "quantityType",
+        label: "Quantity type",
         schema: z.object({ name: z.string().trim().min(1).max(80), status: entityStatusSchema.optional() }),
     },
     {
         path: "products",
         delegate: "product",
+        label: "Product",
         schema: z.object({
             name: z.string().trim().min(1).max(160),
             priceSell: z.coerce.number().positive().max(MAX_MONEY).optional(),
@@ -36,6 +38,7 @@ export const catalogResources = [
     {
         path: "debtors",
         delegate: "debtor",
+        label: "Debtor",
         schema: z.object({
             name: z.string().trim().min(1).max(160),
             phone: z.string().trim().max(30).nullable().optional(),
@@ -46,6 +49,7 @@ export const catalogResources = [
     {
         path: "expense-templates",
         delegate: "expenseTemplate",
+        label: "Expense template",
         schema: z.object({
             name: z.string().trim().min(1).max(160),
             recurrence: z.enum(["ONE_TIME", "WEEKLY", "MONTHLY", "YEARLY"]),

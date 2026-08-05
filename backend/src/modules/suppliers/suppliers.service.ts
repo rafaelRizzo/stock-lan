@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { AppError } from "../../lib/errors.js";
+import { AppError, isUniqueConstraintError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 
 type SupplierInput = {
@@ -36,12 +36,23 @@ export const suppliersService = {
         ]);
         return { data, total };
     },
-    create: (input: SupplierInput, createdUserId: string) =>
-        prisma.supplier.create({ data: { ...input, createdUserId } }),
+    create: async (input: SupplierInput, createdUserId: string) => {
+        try {
+            return await prisma.supplier.create({ data: { ...input, createdUserId } });
+        } catch (error) {
+            if (isUniqueConstraintError(error, "name")) throw new AppError(409, "Supplier already exists");
+            throw error;
+        }
+    },
     update: async (id: string, input: Partial<SupplierInput>) => {
         const supplier = await prisma.supplier.findUnique({ where: { id } });
         if (!supplier) throw new AppError(404, "Supplier not found");
-        return prisma.supplier.update({ where: { id }, data: input });
+        try {
+            return await prisma.supplier.update({ where: { id }, data: input });
+        } catch (error) {
+            if (isUniqueConstraintError(error, "name")) throw new AppError(409, "Supplier already exists");
+            throw error;
+        }
     },
     archive: async (id: string) => {
         const supplier = await prisma.supplier.findUnique({ where: { id } });

@@ -4,7 +4,7 @@ import {
   reportsService,
   type DashboardSummaryParams,
 } from "@/services/reports.service"
-import { salesService, type SalePaymentInput } from "@/services/sales.service"
+import type { SalePaymentInput } from "@/services/sales.service"
 import { notify } from "@/lib/toast"
 
 export function useDashboardSummary(
@@ -24,6 +24,7 @@ export function useDebtReports(params: {
   limit: number
   dateFrom?: string
   dateTo?: string
+  debtorId?: string
 }) {
   return useQuery({
     queryKey: ["reports", "debts", params],
@@ -31,11 +32,24 @@ export function useDebtReports(params: {
   })
 }
 
+export function useDebtorStatement(debtorId: string | undefined) {
+  return useQuery({
+    queryKey: ["reports", "debtor-statement", debtorId],
+    queryFn: () => reportsService.debtorStatement(debtorId as string),
+    enabled: Boolean(debtorId),
+  })
+}
+
 export function useRegisterDebtPayment() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: SalePaymentInput }) =>
-      salesService.addPayment(id, input),
+    mutationFn: ({
+      debtorId,
+      input,
+    }: {
+      debtorId: string
+      input: SalePaymentInput
+    }) => reportsService.receiveDebtPayment(debtorId, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reports"] })
       queryClient.invalidateQueries({ queryKey: ["sales"] })

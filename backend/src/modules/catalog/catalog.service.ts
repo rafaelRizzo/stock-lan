@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import argon2 from "argon2";
 import { getOrSetLocal, invalidate, invalidatePrefix } from "../../lib/cache.js";
-import { AppError } from "../../lib/errors.js";
+import { AppError, isUniqueConstraintError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { computeNextDueDate, type RecurrenceKind } from "../../lib/recurrence.js";
 import { createNoCostStockBatch } from "../stock/stock.service.js";
@@ -195,24 +195,30 @@ export const catalogService = {
                 }),
             };
         }
-        const item =
-            initialQuantity !== undefined && initialQuantityTypeId !== undefined
-                ? await prisma.$transaction(async (tx) => {
-                      const product = await tx.product.create({
-                          data: { ...payload, createdUserId: userId } as Prisma.ProductUncheckedCreateInput,
-                      });
-                      await createNoCostStockBatch(
-                          tx,
-                          {
-                              productId: product.id,
-                              quantityTypeId: initialQuantityTypeId as string,
-                              quantity: initialQuantity as number,
-                          },
-                          userId,
-                      );
-                      return product;
-                  })
-                : await db[resource.delegate].create({ data: { ...payload, createdUserId: userId } });
+        let item: { id: string };
+        try {
+            item =
+                initialQuantity !== undefined && initialQuantityTypeId !== undefined
+                    ? await prisma.$transaction(async (tx) => {
+                          const product = await tx.product.create({
+                              data: { ...payload, createdUserId: userId } as Prisma.ProductUncheckedCreateInput,
+                          });
+                          await createNoCostStockBatch(
+                              tx,
+                              {
+                                  productId: product.id,
+                                  quantityTypeId: initialQuantityTypeId as string,
+                                  quantity: initialQuantity as number,
+                              },
+                              userId,
+                          );
+                          return product;
+                      })
+                    : await db[resource.delegate].create({ data: { ...payload, createdUserId: userId } });
+        } catch (error) {
+            if (isUniqueConstraintError(error, "name")) throw new AppError(409, `${resource.label} already exists`);
+            throw error;
+        }
         await audit(resource.delegate, item.id, "CREATE", userId, item);
         await invalidatePrefix(`catalog:${resource.delegate}:`);
         await invalidatePrefix("stock:");
@@ -252,7 +258,13 @@ export const catalogService = {
                 }),
             };
         }
-        const item = await db[resource.delegate].update({ where: { id }, data: payload });
+        let item: { id: string };
+        try {
+            item = await db[resource.delegate].update({ where: { id }, data: payload });
+        } catch (error) {
+            if (isUniqueConstraintError(error, "name")) throw new AppError(409, `${resource.label} already exists`);
+            throw error;
+        }
         await audit(resource.delegate, id, "UPDATE", userId, item, previous);
         await invalidatePrefix(`catalog:${resource.delegate}:`);
         await invalidatePrefix("stock:");
@@ -306,10 +318,17 @@ export const catalogService = {
     },
     createUser: async (data: { password: string; [key: string]: unknown }, userId: string) => {
         const { password, ...userData } = data;
-        const user = await prisma.user.create({
-            data: { ...userData, passwordHash: await argon2.hash(password), createdUserId: userId } as never,
-            omit: { passwordHash: true },
-        });
+        let user: { id: string };
+        try {
+            user = await prisma.user.create({
+                data: { ...userData, passwordHash: await argon2.hash(password), createdUserId: userId } as never,
+                omit: { passwordHash: true },
+            });
+        } catch (error) {
+            if (isUniqueConstraintError(error, "username")) throw new AppError(409, "Username already exists");
+            if (isUniqueConstraintError(error, "name")) throw new AppError(409, "User already exists");
+            throw error;
+        }
         await audit("user", user.id, "CREATE", userId, user);
         return user;
     },
