@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DateRangePicker } from "@/components/shared/date-range-picker"
+import { SearchableSelect } from "@/components/shared/searchable-select"
 import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import {
   Dialog,
@@ -87,6 +88,16 @@ export function DebtReportsPage() {
   const [paymentTarget, setPaymentTarget] = useState<DebtReport | null>(null)
   const [historyDebtorId, setHistoryDebtorId] = useState<string | null>(null)
   const debtors = useDebtors({ page: 1, limit: 100, status: "ACTIVE" })
+  const debtorOptions = useMemo(
+    () => [
+      { value: "ALL", label: "Todos os devedores" },
+      ...(debtors.data?.data ?? []).map((debtor) => ({
+        value: debtor.id,
+        label: debtor.name,
+      })),
+    ],
+    [debtors.data]
+  )
   const debts = useDebtReports({
     page,
     limit: pageSize,
@@ -134,28 +145,16 @@ export function DebtReportsPage() {
               setPage(1)
             }}
           />
-          <Select
-            value={debtorId || "ALL"}
+          <SearchableSelect
+            className={`${selectClass} sm:w-56`}
+            items={debtorOptions}
             onValueChange={(value) => {
-              setDebtorId(value === "ALL" ? "" : (value ?? ""))
+              setDebtorId(value === "ALL" ? "" : value)
               setPage(1)
             }}
-          >
-            <SelectTrigger className={`${selectClass} sm:w-56`}>
-              <span>
-                {debtors.data?.data.find((debtor) => debtor.id === debtorId)
-                  ?.name || "Todos os devedores"}
-              </span>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Todos os devedores</SelectItem>
-              {debtors.data?.data.map((debtor) => (
-                <SelectItem key={debtor.id} value={debtor.id}>
-                  {debtor.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder="Todos os devedores"
+            value={debtorId || "ALL"}
+          />
         </div>
         <Table>
           <TableHeader>

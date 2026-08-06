@@ -376,6 +376,14 @@ function SaleDialog({
     [sellableProducts]
   )
   const debtors = useDebtors({ page: 1, limit: 100, status: "ACTIVE" })
+  const debtorOptions = useMemo(
+    () =>
+      (debtors.data?.data ?? []).map((debtor) => ({
+        value: debtor.id,
+        label: debtor.name,
+      })),
+    [debtors.data]
+  )
   const create = useCreateSale()
   const update = useUpdateSale()
   const editing = Boolean(sale)
@@ -502,25 +510,13 @@ function SaleDialog({
             </Field>
             {status === "DEBT" && (
               <Field label="Devedor">
-                <Select
+                <SearchableSelect
+                  className={selectClass}
+                  items={debtorOptions}
+                  onValueChange={setDebtorId}
+                  placeholder="Selecione o devedor"
                   value={debtorId}
-                  onValueChange={(value) => setDebtorId(value ?? "")}
-                >
-                  <SelectTrigger className={selectClass}>
-                    <span>
-                      {debtors.data?.data.find(
-                        (debtor) => debtor.id === debtorId
-                      )?.name || "Selecione o devedor"}
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {debtors.data?.data.map((debtor) => (
-                      <SelectItem key={debtor.id} value={debtor.id}>
-                        {debtor.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </Field>
             )}
             {status === "PAID" && (
