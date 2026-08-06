@@ -28,7 +28,7 @@ export const suppliersService = {
         const [data, total] = await Promise.all([
             prisma.supplier.findMany({
                 where,
-                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                orderBy: [{ name: "asc" }, { id: "asc" }],
                 skip: input.skip,
                 take: input.take,
             }),

@@ -720,6 +720,7 @@ const currency = (value: string | number) =>
     Number(value)
   )
 const date = (value: string) =>
-  new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(
-    new Date(value)
-  )
+  new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  }).format(new Date(value))

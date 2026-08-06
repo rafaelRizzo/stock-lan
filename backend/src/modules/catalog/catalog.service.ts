@@ -116,7 +116,7 @@ export const catalogService = {
                     const [products, total] = await Promise.all([
                         prisma.product.findMany({
                             where: where as Prisma.ProductWhereInput,
-                            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                            orderBy: [{ name: "asc" }, { id: "asc" }],
                             skip,
                             take,
                         }),
@@ -146,7 +146,10 @@ export const catalogService = {
                 return Promise.all([
                     db[resource.delegate].findMany({
                         where,
-                        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                        orderBy:
+                            resource.delegate === "debtor"
+                                ? [{ name: "asc" }, { id: "asc" }]
+                                : [{ createdAt: "desc" }, { id: "desc" }],
                         skip,
                         take,
                     }),
