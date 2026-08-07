@@ -61,6 +61,11 @@ enum ExpenseStatus {
   CANCELED
 }
 
+enum CashMovementType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
 model User {
   id                String             @id @default(cuid())
   name              String             @unique
@@ -90,11 +95,11 @@ model User {
   payments          Payment[]
   expenseTemplates  ExpenseTemplate[]
   expenses          Expense[]
+  cashMovements     CashMovement[]
   notificationReads NotificationRead[]
 
-  @@index([status])
+  @@index([status, createdAt])
   @@index([createdUserId])
-  @@index([createdAt])
 }
 
 model UserSession {
@@ -140,7 +145,7 @@ model Supplier {
   createdUser   User         @relation(fields: [createdUserId], references: [id])
   stockBatches  StockBatch[]
 
-  @@index([status, createdAt])
+  @@index([status, name])
   @@index([createdUserId])
 }
 
@@ -159,7 +164,7 @@ model Product {
   saleItems        SaleItem[]
   movements        StockMovement[]
 
-  @@index([status, createdAt])
+  @@index([status, name])
   @@index([createdUserId])
 }
 
@@ -175,7 +180,7 @@ model Debtor {
   createdUser   User         @relation(fields: [createdUserId], references: [id])
   sales         Sale[]
 
-  @@index([status, createdAt])
+  @@index([status, name])
   @@index([createdUserId])
 }
 
@@ -228,7 +233,7 @@ model Sale {
   movements     StockMovement[]
 
   @@index([status, createdAt])
-  @@index([clientName])
+  @@index([createdAt])
   @@index([debtorId, createdAt])
   @@index([createdUserId])
 }
@@ -277,6 +282,7 @@ model StockMovement {
   @@index([stockBatchId])
   @@index([saleId, createdAt])
   @@index([createdUserId])
+  @@index([createdAt])
 }
 
 model Payment {
@@ -312,10 +318,9 @@ model ExpenseTemplate {
   createdUser   User              @relation(fields: [createdUserId], references: [id])
   expenses      Expense[]
 
-  @@index([recurrence])
   @@index([status, createdAt])
   @@index([createdUserId])
-  @@index([nextDueDate])
+  @@index([status, nextDueDate])
 }
 
 model Expense {
@@ -334,7 +339,23 @@ model Expense {
   createdUser       User             @relation(fields: [createdUserId], references: [id])
 
   @@index([status, dueDate])
+  @@index([dueDate])
   @@index([expenseTemplateId])
+  @@index([createdUserId])
+  @@index([createdAt])
+}
+
+model CashMovement {
+  id            String           @id @default(cuid())
+  type          CashMovementType
+  value         Decimal          @db.Decimal(14, 2)
+  obs           String?
+  createdUserId String
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  createdUser   User             @relation(fields: [createdUserId], references: [id])
+
+  @@index([type, createdAt])
   @@index([createdUserId])
   @@index([createdAt])
 }

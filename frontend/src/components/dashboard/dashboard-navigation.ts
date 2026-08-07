@@ -13,6 +13,7 @@ import {
   Truck,
   UserCog,
   UsersRound,
+  Wallet,
   WalletCards,
 } from "lucide-react"
 
@@ -67,6 +68,12 @@ export const navigationGroups: NavigationGroup[] = [
     label: "FINANCEIRO",
     items: [
       { label: "Despesas", to: "/dashboard/expenses", icon: WalletCards },
+      {
+        label: "Caixa",
+        to: "/dashboard/cash-movements",
+        icon: Wallet,
+        roles: ["ADMIN", "MANAGER"],
+      },
       {
         label: "Contas a receber",
         to: "/dashboard/reports/debts",

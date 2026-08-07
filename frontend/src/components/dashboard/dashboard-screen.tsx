@@ -15,6 +15,7 @@ import {
 
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
 import { pageTitles } from "@/components/dashboard/dashboard-navigation"
+import { CashMovementsPage } from "@/components/cash-movements/cash-movements-page"
 import { ProductsPage } from "@/components/products/products-page"
 import { QuantityTypesPage } from "@/components/quantity-types/quantity-types-page"
 import { ReportsPage } from "@/components/reports/reports-page"
@@ -108,6 +109,8 @@ export function DashboardScreen() {
             <StockAlertsPage />
           ) : pathname === "/dashboard/expenses" ? (
             <ExpensesPage />
+          ) : pathname === "/dashboard/cash-movements" ? (
+            <CashMovementsPage />
           ) : pathname === "/dashboard/reports" ? (
             <ReportsPage />
           ) : pathname === "/dashboard/reports/debts" ? (

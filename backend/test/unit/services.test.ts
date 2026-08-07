@@ -33,6 +33,14 @@ const prismaMock = {
     },
     notificationRead: { upsert: mock(), createMany: mock() },
     expenseTemplate: { findMany: mock(), updateMany: mock(), findUnique: mock(), create: mock(), update: mock() },
+    cashMovement: {
+        findMany: mock(),
+        count: mock(),
+        aggregate: mock(),
+        create: mock(),
+        findUnique: mock(),
+        delete: mock(),
+    },
     audit: { create: mock() },
     $queryRaw: mock(),
     $transaction: mock(async (callback: (client: typeof prismaMock) => unknown) => callback(prismaMock)),
@@ -44,6 +52,7 @@ const { reportsService } = await import("../../src/modules/reports/reports.servi
 const { stockService } = await import("../../src/modules/stock/stock.service.js");
 const { notificationsService } = await import("../../src/modules/notifications/notifications.service.js");
 const { expensesService } = await import("../../src/modules/expenses/expenses.service.js");
+const { cashMovementsService } = await import("../../src/modules/cash-movements/cash-movements.service.js");
 const { catalogService } = await import("../../src/modules/catalog/catalog.service.js");
 const { catalogResources } = await import("../../src/modules/catalog/catalog.schemas.js");
 const { runExpenseRecurrenceJob } = await import("../../src/jobs/expense-recurrence.job.js");
@@ -76,6 +85,7 @@ test("builds dashboard totals", async () => {
     prismaMock.stockBatch.findMany.mockResolvedValue([]);
     prismaMock.$queryRaw.mockResolvedValue([{ total: new Prisma.Decimal(40) }]);
     prismaMock.stockBatch.count.mockResolvedValue(2);
+    prismaMock.cashMovement.findMany.mockResolvedValue([]);
 
     const result = await reportsService.dashboard();
     expect(result.revenue.toString()).toBe("100");
@@ -85,6 +95,41 @@ test("builds dashboard totals", async () => {
     expect(result.lowStock).toBe(2);
     expect(result.stockReplenishment.toString()).toBe("40");
     expect(result.cashFlow).toHaveLength(10);
+});
+
+test("includes manual cash movements in the cash flow", async () => {
+    prismaMock.sale.aggregate.mockResolvedValueOnce({ _sum: { total: new Prisma.Decimal(0) } });
+    prismaMock.sale.aggregate.mockResolvedValueOnce({ _sum: { total: new Prisma.Decimal(0) } });
+    prismaMock.expense.aggregate.mockResolvedValue({ _sum: { value: new Prisma.Decimal(0) } });
+    prismaMock.payment.findMany.mockResolvedValue([]);
+    prismaMock.expense.findMany.mockResolvedValue([]);
+    prismaMock.stockBatch.findMany.mockResolvedValue([]);
+    prismaMock.$queryRaw.mockResolvedValue([{ total: new Prisma.Decimal(0) }]);
+    prismaMock.stockBatch.count.mockResolvedValue(0);
+    const today = new Date();
+    prismaMock.cashMovement.findMany.mockResolvedValue([
+        { type: "DEPOSIT", value: new Prisma.Decimal(50), createdAt: today },
+        { type: "WITHDRAWAL", value: new Prisma.Decimal(15), createdAt: today },
+    ]);
+
+    const result = await reportsService.dashboard({ startDate: today, endDate: today });
+    expect(result.cashFlow).toHaveLength(1);
+    expect(result.cashFlow[0].income.toString()).toBe("50");
+    expect(result.cashFlow[0].expense.toString()).toBe("15");
+});
+
+test("cash movements balance nets deposits against withdrawals", async () => {
+    prismaMock.cashMovement.aggregate.mockResolvedValueOnce({ _sum: { value: new Prisma.Decimal(200) } });
+    prismaMock.cashMovement.aggregate.mockResolvedValueOnce({ _sum: { value: new Prisma.Decimal(80) } });
+
+    const result = await cashMovementsService.balance();
+    expect(result.balance.toString()).toBe("120");
+});
+
+test("cash movement delete throws when not found", async () => {
+    prismaMock.cashMovement.findUnique.mockResolvedValue(null);
+    await expect(cashMovementsService.delete("missing")).rejects.toThrow("Cash movement not found");
+    expect(prismaMock.cashMovement.delete).not.toHaveBeenCalled();
 });
 
 test("rejects stock adjustments below zero", async () => {

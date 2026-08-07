@@ -53,6 +53,7 @@ export const reportsService = {
                 cashExpenses,
                 stockBatches,
                 replenishment,
+                cashMovements,
             ] = await Promise.all([
                 prisma.sale.aggregate({
                     where: { status: "PAID", ...(metricRange ? { createdAt: metricRange } : {}) },
@@ -93,6 +94,10 @@ export const reportsService = {
                     FROM "StockBatch"
                     ${replenishmentWhere}
                 `,
+                prisma.cashMovement.findMany({
+                    where: { createdAt: range },
+                    select: { type: true, value: true, createdAt: true },
+                }),
             ]);
             const revenue = paidSales._sum.total ?? new Prisma.Decimal(0);
             const expenses = paidExpenses._sum.value ?? new Prisma.Decimal(0);
@@ -115,6 +120,12 @@ export const reportsService = {
             for (const batch of stockBatches) {
                 const point = points.get(dayKey(batch.dateBuy));
                 if (point) point.expense = point.expense.add(batch.quantityIn.mul(batch.priceBuy));
+            }
+            for (const movement of cashMovements) {
+                const point = points.get(dayKey(movement.createdAt));
+                if (!point) continue;
+                if (movement.type === "DEPOSIT") point.income = point.income.add(movement.value);
+                else point.expense = point.expense.add(movement.value);
             }
             return {
                 revenue,

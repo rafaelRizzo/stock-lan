@@ -9,6 +9,7 @@ import { closeRedis, connectRedis } from "./lib/cache.js";
 import { AppError, errorHandler } from "./lib/errors.js";
 import { prisma } from "./lib/prisma.js";
 import { registerAuthRoutes } from "./modules/auth/auth.routes.js";
+import { registerCashMovementsRoutes } from "./modules/cash-movements/cash-movements.routes.js";
 import { registerCatalogRoutes } from "./modules/catalog/catalog.routes.js";
 import { registerExpensesRoutes } from "./modules/expenses/expenses.routes.js";
 import { registerNotificationsRoutes } from "./modules/notifications/notifications.routes.js";
@@ -48,6 +49,7 @@ export async function buildApp() {
     await registerJwtPlugin(app);
 
     await registerAuthRoutes(app);
+    await registerCashMovementsRoutes(app);
     await registerCatalogRoutes(app);
     await registerExpensesRoutes(app);
     await registerNotificationsRoutes(app);
