@@ -5,12 +5,13 @@ import {
   HandCoins,
   History,
   LoaderCircle,
+  MessageCircle,
   Printer,
   WalletCards,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { DateRangePicker } from "@/components/shared/date-range-picker"
 import { SearchableSelect } from "@/components/shared/searchable-select"
 import { TableSkeletonRows } from "@/components/shared/table-skeleton"
@@ -459,6 +460,25 @@ function DebtorStatementDialog({
           <Button onClick={onClose} type="button" variant="outline">
             Fechar
           </Button>
+          {statement.data?.debtor.phone ? (
+            <a
+              className={buttonVariants({ variant: "outline" })}
+              href={whatsappStatementLink(statement.data)}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <MessageCircle className="size-4" /> Enviar no WhatsApp
+            </a>
+          ) : (
+            <Button
+              disabled
+              title="Devedor sem telefone cadastrado"
+              type="button"
+              variant="outline"
+            >
+              <MessageCircle className="size-4" /> Enviar no WhatsApp
+            </Button>
+          )}
           <Button
             className="bg-[#173f31] text-white hover:bg-[#245742]"
             disabled={!statement.data}
@@ -682,6 +702,56 @@ function printStatement(statement: DebtorStatement) {
   printWindow.onafterprint = () => printWindow.close()
   printWindow.focus()
   printWindow.print()
+}
+
+function whatsappStatementLink(statement: DebtorStatement) {
+  const digits = (statement.debtor.phone ?? "").replace(/\D/g, "")
+  const withDdi = digits.startsWith("55") ? digits : `55${digits}`
+  const text = buildWhatsappMessage(statement)
+  return `https://wa.me/${withDdi}?text=${encodeURIComponent(text)}`
+}
+
+function buildWhatsappMessage(statement: DebtorStatement) {
+  const totalDebt = statement.sales.reduce(
+    (total, sale) => total + Number(sale.total),
+    0
+  )
+  const totalPaid = statement.sales.reduce(
+    (total, sale) => total + paidOf(sale),
+    0
+  )
+  const saleBlocks = statement.sales.map((sale) => {
+    const itemLines = (sale.items ?? []).map(
+      (item) =>
+        `${String(item.quantity).replace(".", ",")}x ${item.product.name} - ${formatCurrency(item.priceTotal)}`
+    )
+    return [
+      formatDate(sale.createdAt),
+      ...itemLines,
+      `Total: ${formatCurrency(sale.total)} · Saldo: ${formatCurrency(balanceOf(sale))}`,
+    ].join("\n")
+  })
+  const payments = mergePayments(statement.sales)
+  const paymentLines = payments.map(
+    (payment) =>
+      `${formatDate(payment.paidAt)} · ${paymentMethods[payment.method]} - ${formatCurrency(payment.amount)}`
+  )
+
+  return [
+    "Olá, segue seu extrato de conta:",
+    "",
+    "Vendas:",
+    saleBlocks.join("\n\n"),
+    "",
+    "Recebimentos:",
+    payments.length > 0
+      ? paymentLines.join("\n")
+      : "Nenhum pagamento registrado.",
+    "",
+    `Total devido: ${formatCurrency(totalDebt)}`,
+    `Total recebido: ${formatCurrency(totalPaid)}`,
+    `Saldo: ${formatCurrency(totalDebt - totalPaid)}`,
+  ].join("\n")
 }
 
 function escapeHtml(value: string) {
