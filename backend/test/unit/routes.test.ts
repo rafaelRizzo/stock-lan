@@ -116,6 +116,18 @@ test("registers expenses routes", async () => {
     ]);
 });
 
+test("registers cash movements routes", async () => {
+    const { registerCashMovementsRoutes } = await import("../../src/modules/cash-movements/cash-movements.routes.js");
+    const { app, routes } = createAppRecorder();
+    await registerCashMovementsRoutes(app);
+    expect(routes).toEqual([
+        { method: "GET", url: "/cash-movements" },
+        { method: "GET", url: "/cash-movements/balance" },
+        { method: "POST", url: "/cash-movements" },
+        { method: "DELETE", url: "/cash-movements/:id" },
+    ]);
+});
+
 test("registers notifications routes", async () => {
     const { registerNotificationsRoutes } = await import("../../src/modules/notifications/notifications.routes.js");
     const { app, routes } = createAppRecorder();

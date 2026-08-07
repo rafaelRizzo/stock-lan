@@ -22,6 +22,7 @@ type RetriableRequest = InternalAxiosRequestConfig & { _retry?: boolean }
 const apiErrorMessages: Record<string, string> = {
   "Canceled sale cannot be edited": "A venda cancelada não pode ser editada.",
   "Cannot archive the current user": "Não é possível arquivar o usuário atual.",
+  "Cash movement not found": "Movimentação de caixa não encontrada.",
   "Debtor already exists": "Já existe um devedor com esse nome.",
   "Expense template already exists": "Já existe um modelo de despesa com esse nome.",
   Forbidden: "Você não tem permissão para esta ação.",
