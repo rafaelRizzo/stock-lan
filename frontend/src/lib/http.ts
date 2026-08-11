@@ -149,6 +149,14 @@ http.interceptors.response.use(
   }
 )
 
+export type LinkedRecordDetail = { label: string; count: number; path: string }
+
+export function getApiErrorDetails(error: unknown): LinkedRecordDetail[] | undefined {
+  if (axios.isAxiosError<{ details?: LinkedRecordDetail[] }>(error))
+    return error.response?.data?.details
+  return undefined
+}
+
 export function getApiErrorMessage(error: unknown) {
   if (axios.isAxiosError<{ message?: string }>(error)) {
     const message = error.response?.data?.message

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { AppError, isUniqueConstraintError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
+import { unaccentSearchIds } from "../../lib/search.js";
 
 type SupplierInput = {
     name: string;
@@ -17,13 +18,15 @@ export const suppliersService = {
         skip: number;
         take: number;
     }) => {
+        const searchIds = input.search ? await unaccentSearchIds("Supplier", ["name"], input.search) : undefined;
+        if (searchIds && searchIds.length === 0) return { data: [], total: 0 };
         const where = {
             ...(input.status
                 ? { status: input.status }
                 : input.includeArchived
                   ? {}
                   : { status: { not: "ARCHIVED" as const } }),
-            ...(input.search ? { name: { contains: input.search, mode: "insensitive" as const } } : {}),
+            ...(searchIds ? { id: { in: searchIds } } : {}),
         };
         const [data, total] = await Promise.all([
             prisma.supplier.findMany({
@@ -65,6 +68,11 @@ export const suppliersService = {
         await prisma.supplier.update({ where: { id }, data: { status: "ACTIVE" } });
     },
     permanentDelete: async (id: string) => {
+        const linkedBatches = await prisma.stockBatch.count({ where: { supplierId: id } });
+        if (linkedBatches > 0)
+            throw new AppError(409, "Supplier cannot be deleted because it has linked records", [
+                { label: "lote(s) de estoque", path: "/dashboard/stock/batches", count: linkedBatches },
+            ]);
         try {
             await prisma.supplier.delete({ where: { id } });
         } catch (error) {

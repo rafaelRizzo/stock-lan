@@ -15,7 +15,6 @@ export function createCatalogController(resource: CatalogResource) {
                     : query.includeArchived
                       ? {}
                       : { status: { not: "ARCHIVED" } }),
-                ...(query.search ? { name: { contains: query.search, mode: "insensitive" } } : {}),
                 ...(resource.delegate === "product" && query.type ? { type: query.type } : {}),
                 ...(resource.delegate === "product" && query.typeNot ? { type: { not: query.typeNot } } : {}),
             };
@@ -25,6 +24,7 @@ export function createCatalogController(resource: CatalogResource) {
                 getSkip(query),
                 query.limit,
                 resource.delegate === "product" ? query.stockOrder : undefined,
+                query.search,
             );
             return paginate(data, total, query);
         },

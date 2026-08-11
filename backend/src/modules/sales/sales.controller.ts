@@ -3,6 +3,7 @@ import { invalidate, invalidatePrefix } from "../../lib/cache.js";
 import { dateRangeFilter } from "../../lib/date-range.js";
 import { AppError, parse } from "../../lib/errors.js";
 import { getSkip, paginate } from "../../lib/pagination.js";
+import { unaccentSearchIds } from "../../lib/search.js";
 import { saleListSchema, saleParamsSchema, salePaymentSchema, saleSchema, saleUpdateSchema } from "./sales.schemas.js";
 import { salesService } from "./sales.service.js";
 
@@ -43,11 +44,15 @@ export const salesController = {
     list: async (request: FastifyRequest) => {
         const query = parse(saleListSchema, request.query);
         const createdAt = dateRangeFilter(query.dateFrom, query.dateTo);
+        const searchIds = query.search
+            ? await unaccentSearchIds("Sale", ["clientName"], query.search)
+            : undefined;
+        if (searchIds && searchIds.length === 0) return paginate([], 0, query);
         const result = await salesService.list(
             {
                 ...(query.status ? { status: query.status } : {}),
                 ...(createdAt ? { createdAt } : {}),
-                ...(query.search ? { clientName: { contains: query.search, mode: "insensitive" } } : {}),
+                ...(searchIds ? { id: { in: searchIds } } : {}),
             },
             getSkip(query),
             query.limit,

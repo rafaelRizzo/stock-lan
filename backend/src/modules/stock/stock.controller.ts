@@ -90,18 +90,13 @@ export const stockController = {
     listBatches: async (request: FastifyRequest) => {
         const query = parse(stockBatchListSchema, request.query);
         const dateBuy = dateRangeFilter(query.dateFrom, query.dateTo);
+        const searchIds = query.search ? await stockService.searchBatchIds(query.search) : undefined;
+        if (searchIds && searchIds.length === 0) return paginate([], 0, query);
         const result = await stockService.listBatches(
             {
                 ...(query.status ? { status: query.status } : {}),
                 ...(dateBuy ? { dateBuy } : {}),
-                ...(query.search
-                    ? {
-                          OR: [
-                              { product: { name: { contains: query.search, mode: "insensitive" } } },
-                              { supplier: { name: { contains: query.search, mode: "insensitive" } } },
-                          ],
-                      }
-                    : {}),
+                ...(searchIds ? { id: { in: searchIds } } : {}),
             },
             getSkip(query),
             query.limit,

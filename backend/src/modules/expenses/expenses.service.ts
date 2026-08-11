@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
+import { unaccentSearchIds } from "../../lib/search.js";
 
 type ExpenseInput = {
     expenseTemplateId?: string;
@@ -20,10 +21,12 @@ export const expensesService = {
         skip: number;
         take: number;
     }) => {
+        const searchIds = input.search ? await unaccentSearchIds("Expense", ["name"], input.search) : undefined;
+        if (searchIds && searchIds.length === 0) return { data: [], total: 0 };
         const where: Prisma.ExpenseWhereInput = {
             ...(input.status ? { status: input.status } : {}),
             ...(input.dueDate ? { dueDate: input.dueDate } : {}),
-            ...(input.search ? { name: { contains: input.search, mode: "insensitive" } } : {}),
+            ...(searchIds ? { id: { in: searchIds } } : {}),
         };
         const [data, total] = await Promise.all([
             prisma.expense.findMany({

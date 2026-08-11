@@ -167,6 +167,17 @@ export const stockService = {
             return batch;
         }),
 
+    searchBatchIds: async (search: string): Promise<string[]> => {
+        const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+            SELECT sb.id FROM "StockBatch" sb
+            JOIN "Product" p ON p.id = sb."productId"
+            LEFT JOIN "Supplier" s ON s.id = sb."supplierId"
+            WHERE unaccent(p."name") ILIKE unaccent(${`%${search}%`})
+               OR unaccent(s."name") ILIKE unaccent(${`%${search}%`})
+        `;
+        return rows.map((row) => row.id);
+    },
+
     listBatches: async (where: Prisma.StockBatchWhereInput, skip: number, take: number) => {
         const key = `stock:batches:${JSON.stringify({ where, skip, take })}`;
         return getOrSetLocal(key, 15, async () => {

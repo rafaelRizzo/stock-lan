@@ -1,4 +1,5 @@
 import { useRef, useState } from "react"
+import { Link } from "@tanstack/react-router"
 import { LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,7 +10,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { getApiErrorMessage } from "@/lib/http"
+import {
+  getApiErrorDetails,
+  getApiErrorMessage,
+  type LinkedRecordDetail,
+} from "@/lib/http"
 
 export function PermanentDeleteDialog({
   open,
@@ -25,16 +30,19 @@ export function PermanentDeleteDialog({
   onConfirm: () => Promise<unknown>
 }) {
   const [error, setError] = useState<string | null>(null)
+  const [linkedRecords, setLinkedRecords] = useState<LinkedRecordDetail[]>([])
   const [pending, setPending] = useState(false)
   const confirmRef = useRef<HTMLButtonElement>(null)
   async function confirm() {
     try {
       setPending(true)
       setError(null)
+      setLinkedRecords([])
       await onConfirm()
       onClose()
     } catch (cause) {
       setError(getApiErrorMessage(cause))
+      setLinkedRecords(getApiErrorDetails(cause) ?? [])
     } finally {
       setPending(false)
     }
@@ -54,9 +62,31 @@ export function PermanentDeleteDialog({
           Registros com vínculos não podem ser excluídos.
         </p>
         {error && (
-          <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
-          </p>
+          <div className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p>{error}</p>
+            {linkedRecords.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {linkedRecords.map((detail) => (
+                  <li
+                    className="flex items-center justify-between gap-2"
+                    key={detail.label}
+                  >
+                    <span>
+                      {detail.count} {detail.label}
+                    </span>
+                    <Link
+                      className="font-medium underline underline-offset-2 hover:no-underline"
+                      onClick={onClose}
+                      params={{ _splat: detail.path.replace(/^\/dashboard\//, "") }}
+                      to="/dashboard/$"
+                    >
+                      Ver
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
         <DialogFooter>
           <Button onClick={onClose} type="button" variant="outline">

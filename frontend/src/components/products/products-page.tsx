@@ -475,6 +475,10 @@ function CreateProductDialog({
   const create = useCreateProduct()
   const quantityTypes = useQuantityTypes({ page: 1, limit: 100, status: "ACTIVE" })
   const isRawMaterial = type === "RAW_MATERIAL"
+  useEffect(() => {
+    if (!initialQuantityTypeId && quantityTypes.data?.data.length === 1)
+      setInitialQuantityTypeId(quantityTypes.data.data[0].id)
+  }, [quantityTypes.data, initialQuantityTypeId])
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const priceSell = Number(price.replace(",", "."))
@@ -775,6 +779,10 @@ function AddStockDialog({
       setError(null)
     }
   }, [product])
+  useEffect(() => {
+    if (!quantityTypeId && quantityTypes.data?.data.length === 1)
+      setQuantityTypeId(quantityTypes.data.data[0].id)
+  }, [quantityTypes.data, quantityTypeId])
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!product) return
