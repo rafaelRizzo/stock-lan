@@ -1,11 +1,59 @@
 import { Prisma } from "@prisma/client";
 import argon2 from "argon2";
 import { getOrSetLocal, invalidate, invalidatePrefix } from "../../lib/cache.js";
-import { AppError, isUniqueConstraintError } from "../../lib/errors.js";
+import { AppError, isUniqueConstraintError, type LinkedRecordDetail } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { computeNextDueDate, type RecurrenceKind } from "../../lib/recurrence.js";
+import { unaccentSearchIds } from "../../lib/search.js";
 import { createNoCostStockBatch } from "../stock/stock.service.js";
 import type { CatalogResource } from "./catalog.schemas.js";
+
+const linkedRecordChecks: Record<
+    CatalogResource["delegate"],
+    Array<{ label: string; path: string; count: (id: string) => Promise<number> }>
+> = {
+    quantityType: [
+        {
+            label: "lote(s) de estoque",
+            path: "/dashboard/stock/batches",
+            count: (id) => prisma.stockBatch.count({ where: { quantityTypeId: id } }),
+        },
+    ],
+    product: [
+        {
+            label: "lote(s) de estoque",
+            path: "/dashboard/stock/batches",
+            count: (id) => prisma.stockBatch.count({ where: { productId: id } }),
+        },
+        {
+            label: "item(ns) de venda",
+            path: "/dashboard/sales",
+            count: (id) => prisma.saleItem.count({ where: { productId: id } }),
+        },
+    ],
+    debtor: [
+        {
+            label: "venda(s)",
+            path: "/dashboard/sales",
+            count: (id) => prisma.sale.count({ where: { debtorId: id } }),
+        },
+    ],
+    expenseTemplate: [
+        {
+            label: "despesa(s)",
+            path: "/dashboard/expenses",
+            count: (id) => prisma.expense.count({ where: { expenseTemplateId: id } }),
+        },
+    ],
+};
+
+async function findLinkedRecords(resource: CatalogResource, id: string): Promise<LinkedRecordDetail[]> {
+    const checks = linkedRecordChecks[resource.delegate];
+    const counted = await Promise.all(
+        checks.map(async (check) => ({ label: check.label, path: check.path, count: await check.count(id) })),
+    );
+    return counted.filter((entry) => entry.count > 0);
+}
 
 type CrudDelegate = {
     findMany: (args: unknown) => Promise<Array<{ id: string }>>;
@@ -66,21 +114,21 @@ export const catalogService = {
         skip: number,
         take: number,
         stockOrder?: "asc" | "desc",
+        search?: string,
     ): Promise<[Array<{ id: string }>, number]> =>
         getOrSetLocal(
-            `catalog:${resource.delegate}:list:${JSON.stringify({ where, skip, take, stockOrder })}`,
+            `catalog:${resource.delegate}:list:${JSON.stringify({ where, skip, take, stockOrder, search })}`,
             60,
             async () => {
+                const searchIds = search ? await unaccentSearchIds(resource.table, ["name"], search) : undefined;
+                if (searchIds && searchIds.length === 0) return [[], 0];
+                const effectiveWhere = searchIds ? { ...(where as object), id: { in: searchIds } } : where;
                 if (resource.delegate === "product") {
                     if (stockOrder) {
-                        const productWhere = where as Prisma.ProductWhereInput;
+                        const productWhere = effectiveWhere as Prisma.ProductWhereInput;
                         const status = typeof productWhere.status === "string" ? productWhere.status : undefined;
                         const excludesArchived =
                             typeof productWhere.status === "object" && productWhere.status?.not === "ARCHIVED";
-                        const search =
-                            typeof productWhere.name === "object" && "contains" in productWhere.name
-                                ? productWhere.name.contains
-                                : undefined;
                         const type = typeof productWhere.type === "string" ? productWhere.type : undefined;
                         const typeNot =
                             typeof productWhere.type === "object" && productWhere.type && "not" in productWhere.type
@@ -89,7 +137,7 @@ export const catalogService = {
                         const filters = [
                             status ? Prisma.sql`p."status" = ${status}::"EntityStatus"` : undefined,
                             excludesArchived ? Prisma.sql`p."status" != 'ARCHIVED'::"EntityStatus"` : undefined,
-                            search ? Prisma.sql`p."name" ILIKE ${`%${search}%`}` : undefined,
+                            searchIds ? Prisma.sql`p.id IN (${Prisma.join(searchIds)})` : undefined,
                             type ? Prisma.sql`p."type" = ${type}::"ProductType"` : undefined,
                             typeNot ? Prisma.sql`p."type" != ${typeNot}::"ProductType"` : undefined,
                         ].filter((filter): filter is Prisma.Sql => Boolean(filter));
@@ -115,12 +163,12 @@ export const catalogService = {
                     }
                     const [products, total] = await Promise.all([
                         prisma.product.findMany({
-                            where: where as Prisma.ProductWhereInput,
+                            where: effectiveWhere as Prisma.ProductWhereInput,
                             orderBy: [{ name: "asc" }, { id: "asc" }],
                             skip,
                             take,
                         }),
-                        prisma.product.count({ where: where as Prisma.ProductWhereInput }),
+                        prisma.product.count({ where: effectiveWhere as Prisma.ProductWhereInput }),
                     ]);
                     const balances = products.length
                         ? await prisma.stockBatch.groupBy({
@@ -145,7 +193,7 @@ export const catalogService = {
                 }
                 return Promise.all([
                     db[resource.delegate].findMany({
-                        where,
+                        where: effectiveWhere,
                         orderBy:
                             resource.delegate === "debtor"
                                 ? [{ name: "asc" }, { id: "asc" }]
@@ -153,7 +201,7 @@ export const catalogService = {
                         skip,
                         take,
                     }),
-                    db[resource.delegate].count({ where }),
+                    db[resource.delegate].count({ where: effectiveWhere }),
                 ]);
             },
         ),
@@ -307,6 +355,9 @@ export const catalogService = {
     permanentDelete: async (resource: CatalogResource, id: string, userId: string) => {
         const previous = await db[resource.delegate].findUnique({ where: { id } });
         if (!previous) throw new AppError(404, "Resource not found");
+        const linkedRecords = await findLinkedRecords(resource, id);
+        if (linkedRecords.length)
+            throw new AppError(409, "Resource cannot be deleted because it has linked records", linkedRecords);
         try {
             await db[resource.delegate].delete({ where: { id } });
         } catch (error) {

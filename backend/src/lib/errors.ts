@@ -2,10 +2,13 @@ import { Prisma } from "@prisma/client";
 import type { FastifyError, FastifyRequest } from "fastify";
 import type { ZodType } from "zod";
 
+export type LinkedRecordDetail = { label: string; count: number; path: string };
+
 export class AppError extends Error {
     constructor(
         public readonly statusCode: number,
         message: string,
+        public readonly details?: LinkedRecordDetail[],
     ) {
         super(message);
     }
@@ -32,5 +35,6 @@ export function errorHandler(
     if (!(error instanceof AppError)) request.log.error({ err: error }, "Request failed");
     const statusCode = error instanceof AppError ? error.statusCode : (error.statusCode ?? 500);
     const message = statusCode >= 500 ? "Internal server error" : error.message;
-    return reply.status(statusCode).send({ message, statusCode });
+    const details = error instanceof AppError ? error.details : undefined;
+    return reply.status(statusCode).send({ message, statusCode, ...(details ? { details } : {}) });
 }

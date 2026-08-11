@@ -1,6 +1,7 @@
 import argon2 from "argon2";
 import { AppError, isUniqueConstraintError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
+import { unaccentSearchIds } from "../../lib/search.js";
 
 export const usersService = {
     list: async (
@@ -9,16 +10,11 @@ export const usersService = {
         skip: number,
         take: number,
     ) => {
+        const searchIds = search ? await unaccentSearchIds("User", ["name", "username"], search) : undefined;
+        if (searchIds && searchIds.length === 0) return { data: [], total: 0 };
         const where = {
             ...(status ? { status } : {}),
-            ...(search
-                ? {
-                      OR: [
-                          { name: { contains: search, mode: "insensitive" as const } },
-                          { username: { contains: search, mode: "insensitive" as const } },
-                      ],
-                  }
-                : {}),
+            ...(searchIds ? { id: { in: searchIds } } : {}),
         };
         const [data, total] = await Promise.all([
             prisma.user.findMany({
