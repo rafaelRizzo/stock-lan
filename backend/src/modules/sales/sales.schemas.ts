@@ -31,6 +31,7 @@ export const saleListSchema = paginationSchema.extend({
     search: z.string().trim().max(160).optional(),
     dateFrom: z.coerce.date().optional(),
     dateTo: z.coerce.date().optional(),
+    productId: z.string().cuid().optional(),
 });
 
 export type SaleInput = z.infer<typeof saleSchema>;

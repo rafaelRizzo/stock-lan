@@ -2,7 +2,12 @@ import { Prisma } from "@prisma/client";
 import type { FastifyError, FastifyRequest } from "fastify";
 import type { ZodType } from "zod";
 
-export type LinkedRecordDetail = { label: string; count: number; path: string };
+export type LinkedRecordDetail = {
+    label: string;
+    count: number;
+    path: string;
+    query?: Record<string, string>;
+};
 
 export class AppError extends Error {
     constructor(

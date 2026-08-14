@@ -41,6 +41,7 @@ export const stockBatchListSchema = paginationSchema.extend({
     status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
     dateFrom: z.coerce.date().optional(),
     dateTo: z.coerce.date().optional(),
+    productId: z.string().cuid().optional(),
 });
 export const stockMovementListSchema = paginationSchema.extend({
     dateFrom: z.coerce.date().optional(),

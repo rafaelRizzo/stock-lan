@@ -26,6 +26,7 @@ export type SalesParams = {
   status?: SaleStatus
   dateFrom?: string
   dateTo?: string
+  productId?: string
 }
 export type PaginatedSales = {
   data: Sale[]

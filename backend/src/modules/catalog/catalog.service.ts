@@ -10,7 +10,12 @@ import type { CatalogResource } from "./catalog.schemas.js";
 
 const linkedRecordChecks: Record<
     CatalogResource["delegate"],
-    Array<{ label: string; path: string; count: (id: string) => Promise<number> }>
+    Array<{
+        label: string;
+        path: string;
+        count: (id: string) => Promise<number>;
+        query?: (record: { id: string; name?: string }) => Record<string, string>;
+    }>
 > = {
     quantityType: [
         {
@@ -24,11 +29,13 @@ const linkedRecordChecks: Record<
             label: "lote(s) de estoque",
             path: "/dashboard/stock/batches",
             count: (id) => prisma.stockBatch.count({ where: { productId: id } }),
+            query: (record) => ({ productId: record.id, productName: record.name ?? "" }),
         },
         {
             label: "item(ns) de venda",
             path: "/dashboard/sales",
             count: (id) => prisma.saleItem.count({ where: { productId: id } }),
+            query: (record) => ({ productId: record.id, productName: record.name ?? "" }),
         },
     ],
     debtor: [
@@ -47,10 +54,18 @@ const linkedRecordChecks: Record<
     ],
 };
 
-async function findLinkedRecords(resource: CatalogResource, id: string): Promise<LinkedRecordDetail[]> {
+async function findLinkedRecords(
+    resource: CatalogResource,
+    record: { id: string; name?: string },
+): Promise<LinkedRecordDetail[]> {
     const checks = linkedRecordChecks[resource.delegate];
     const counted = await Promise.all(
-        checks.map(async (check) => ({ label: check.label, path: check.path, count: await check.count(id) })),
+        checks.map(async (check) => ({
+            label: check.label,
+            path: check.path,
+            count: await check.count(record.id),
+            query: check.query?.(record),
+        })),
     );
     return counted.filter((entry) => entry.count > 0);
 }
@@ -355,7 +370,7 @@ export const catalogService = {
     permanentDelete: async (resource: CatalogResource, id: string, userId: string) => {
         const previous = await db[resource.delegate].findUnique({ where: { id } });
         if (!previous) throw new AppError(404, "Resource not found");
-        const linkedRecords = await findLinkedRecords(resource, id);
+        const linkedRecords = await findLinkedRecords(resource, previous as { id: string; name?: string });
         if (linkedRecords.length)
             throw new AppError(409, "Resource cannot be deleted because it has linked records", linkedRecords);
         try {

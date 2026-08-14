@@ -10,6 +10,7 @@ export type ExpenseTemplate = {
   status: ExpenseTemplateStatus
   anchorDate: string | null
   nextDueDate: string | null
+  notifyDaysBefore: number | null
   obs: string | null
   createdAt: string
 }
@@ -18,6 +19,7 @@ export type ExpenseTemplateInput = {
   recurrence: ExpenseRecurrence
   defaultValue: number
   anchorDate?: string
+  notifyDaysBefore?: number
   obs?: string
 }
 export type PaginatedExpenseTemplates = {

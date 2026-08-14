@@ -53,6 +53,7 @@ export const salesController = {
                 ...(query.status ? { status: query.status } : {}),
                 ...(createdAt ? { createdAt } : {}),
                 ...(searchIds ? { id: { in: searchIds } } : {}),
+                ...(query.productId ? { items: { some: { productId: query.productId } } } : {}),
             },
             getSkip(query),
             query.limit,

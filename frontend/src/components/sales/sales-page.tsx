@@ -16,6 +16,7 @@ import {
   Search,
   ShoppingCart,
   Trash2,
+  X,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -63,6 +64,7 @@ import {
   useSales,
   useUpdateSale,
 } from "@/hooks/sales/use-sales"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type { PaymentMethod, Sale, SaleStatus } from "@/services/sales.service"
@@ -91,7 +93,13 @@ const paymentMethods: Record<PaymentMethod, string> = {
 const selectClass =
   "h-10! w-full rounded-xl! border-[#dce3de]! bg-input/50! px-2.5! py-1! text-sm shadow-none data-[size=default]:h-10! dark:border-border!"
 
-export function SalesPage() {
+export function SalesPage({
+  filterProductId,
+  filterProductName,
+}: {
+  filterProductId?: string
+  filterProductName?: string
+} = {}) {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<SaleStatus | "">("")
@@ -100,13 +108,16 @@ export function SalesPage() {
   const [open, setOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Sale | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Sale | null>(null)
+  const [productFilter, setProductFilter] = useState(filterProductId)
+  const debouncedSearch = useDebouncedValue(search)
   const sales = useSales({
     page,
     limit: pageSize,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: status || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
+    productId: productFilter,
   })
   const { data: user } = useCurrentUser()
   const canEdit = ["ADMIN", "MANAGER", "OPERATOR"].includes(user?.role ?? "")
@@ -139,6 +150,25 @@ export function SalesPage() {
         </Button>
       </div>
       <section className="rounded-2xl border border-[#e5e9e4] bg-background dark:border-border">
+        {productFilter && (
+          <div className="flex items-center gap-2 border-b border-[#e5e9e4] bg-[#eaf4ec] px-4 py-2 text-sm text-[#2e7152] dark:border-border dark:bg-emerald-950/40 dark:text-emerald-300">
+            <span>
+              Filtrando vendas de{" "}
+              <strong>{filterProductName || "produto selecionado"}</strong>
+            </span>
+            <Button
+              className="h-6 rounded-lg px-2 text-xs text-[#2e7152] hover:bg-[#dcefe1] dark:text-emerald-300 dark:hover:bg-emerald-950"
+              onClick={() => {
+                setProductFilter(undefined)
+                setPage(1)
+              }}
+              size="sm"
+              variant="ghost"
+            >
+              <X className="size-3.5" /> Remover filtro
+            </Button>
+          </div>
+        )}
         <div className="flex flex-col gap-3 border-b border-[#e5e9e4] p-4 sm:flex-row sm:items-center dark:border-border">
           <div className="relative w-full sm:w-[28rem]">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />

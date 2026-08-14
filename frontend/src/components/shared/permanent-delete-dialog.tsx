@@ -78,6 +78,7 @@ export function PermanentDeleteDialog({
                       className="font-medium underline underline-offset-2 hover:no-underline"
                       onClick={onClose}
                       params={{ _splat: detail.path.replace(/^\/dashboard\//, "") }}
+                      search={detail.query}
                       to="/dashboard/$"
                     >
                       Ver

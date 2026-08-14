@@ -122,14 +122,14 @@ model UserSession {
 }
 
 model QuantityType {
-  id               String            @id @default(cuid())
-  name             String            @unique
-  status           EntityStatus      @default(ACTIVE)
-  createdUserId    String
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  createdUser      User              @relation(fields: [createdUserId], references: [id])
-  stockBatches     StockBatch[]
+  id            String       @id @default(cuid())
+  name          String       @unique
+  status        EntityStatus @default(ACTIVE)
+  createdUserId String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  createdUser   User         @relation(fields: [createdUserId], references: [id])
+  stockBatches  StockBatch[]
 
   @@index([status, createdAt])
   @@index([createdUserId])
@@ -152,19 +152,19 @@ model Supplier {
 }
 
 model Product {
-  id               String            @id @default(cuid())
-  name             String            @unique
-  priceSell        Decimal?          @db.Decimal(14, 2)
-  type             ProductType       @default(BOTH)
-  obs              String?
-  status           EntityStatus      @default(ACTIVE)
-  createdUserId    String
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  createdUser      User              @relation(fields: [createdUserId], references: [id])
-  stockBatches     StockBatch[]
-  saleItems        SaleItem[]
-  movements        StockMovement[]
+  id            String          @id @default(cuid())
+  name          String          @unique
+  priceSell     Decimal?        @db.Decimal(14, 2)
+  type          ProductType     @default(BOTH)
+  obs           String?
+  status        EntityStatus    @default(ACTIVE)
+  createdUserId String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  createdUser   User            @relation(fields: [createdUserId], references: [id])
+  stockBatches  StockBatch[]
+  saleItems     SaleItem[]
+  movements     StockMovement[]
 
   @@index([status, name])
   @@index([createdUserId])
@@ -187,27 +187,27 @@ model Debtor {
 }
 
 model StockBatch {
-  id                String           @id @default(cuid())
-  supplierId        String?
-  productId         String
-  quantityTypeId    String
-  quantityIn        Decimal          @db.Decimal(14, 3)
-  quantityLeft      Decimal          @db.Decimal(14, 3)
-  priceBuy          Decimal          @db.Decimal(14, 2)
-  dateBuy           DateTime         @db.Date
-  notifyLimit       Boolean          @default(false)
-  quantityNotify    Decimal?         @db.Decimal(14, 3)
-  obs               String?
-  status            EntityStatus     @default(ACTIVE)
-  createdUserId     String
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  supplier          Supplier?        @relation(fields: [supplierId], references: [id])
-  product           Product          @relation(fields: [productId], references: [id])
-  quantityType      QuantityType     @relation(fields: [quantityTypeId], references: [id])
-  createdUser       User             @relation(fields: [createdUserId], references: [id])
-  saleItems         SaleItem[]
-  movements         StockMovement[]
+  id             String          @id @default(cuid())
+  supplierId     String?
+  productId      String
+  quantityTypeId String
+  quantityIn     Decimal         @db.Decimal(14, 3)
+  quantityLeft   Decimal         @db.Decimal(14, 3)
+  priceBuy       Decimal         @db.Decimal(14, 2)
+  dateBuy        DateTime        @db.Date
+  notifyLimit    Boolean         @default(false)
+  quantityNotify Decimal?        @db.Decimal(14, 3)
+  obs            String?
+  status         EntityStatus    @default(ACTIVE)
+  createdUserId  String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  supplier       Supplier?       @relation(fields: [supplierId], references: [id])
+  product        Product         @relation(fields: [productId], references: [id])
+  quantityType   QuantityType    @relation(fields: [quantityTypeId], references: [id])
+  createdUser    User            @relation(fields: [createdUserId], references: [id])
+  saleItems      SaleItem[]
+  movements      StockMovement[]
 
   @@index([supplierId])
   @@index([productId, quantityLeft])
@@ -263,21 +263,21 @@ model SaleItem {
 }
 
 model StockMovement {
-  id                String            @id @default(cuid())
-  type              StockMovementType
-  productId         String
-  stockBatchId      String
-  saleId            String?
-  quantity          Decimal           @db.Decimal(14, 3)
-  costUnit          Decimal           @db.Decimal(14, 2)
-  obs               String?
-  createdUserId     String
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  product           Product           @relation(fields: [productId], references: [id])
-  stockBatch        StockBatch        @relation(fields: [stockBatchId], references: [id], onDelete: Cascade)
-  sale              Sale?             @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  createdUser       User              @relation(fields: [createdUserId], references: [id])
+  id            String            @id @default(cuid())
+  type          StockMovementType
+  productId     String
+  stockBatchId  String
+  saleId        String?
+  quantity      Decimal           @db.Decimal(14, 3)
+  costUnit      Decimal           @db.Decimal(14, 2)
+  obs           String?
+  createdUserId String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  product       Product           @relation(fields: [productId], references: [id])
+  stockBatch    StockBatch        @relation(fields: [stockBatchId], references: [id], onDelete: Cascade)
+  sale          Sale?             @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  createdUser   User              @relation(fields: [createdUserId], references: [id])
 
   @@index([type, createdAt])
   @@index([productId, createdAt])
@@ -306,19 +306,20 @@ model Payment {
 }
 
 model ExpenseTemplate {
-  id            String            @id @default(cuid())
-  name          String            @unique
-  recurrence    ExpenseRecurrence
-  defaultValue  Decimal           @db.Decimal(14, 2)
-  status        EntityStatus      @default(ACTIVE)
-  anchorDate    DateTime?         @db.Date
-  nextDueDate   DateTime?         @db.Date
-  obs           String?
-  createdUserId String
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  createdUser   User              @relation(fields: [createdUserId], references: [id])
-  expenses      Expense[]
+  id               String            @id @default(cuid())
+  name             String            @unique
+  recurrence       ExpenseRecurrence
+  defaultValue     Decimal           @db.Decimal(14, 2)
+  status           EntityStatus      @default(ACTIVE)
+  anchorDate       DateTime?         @db.Date
+  nextDueDate      DateTime?         @db.Date
+  notifyDaysBefore Int?
+  obs              String?
+  createdUserId    String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  createdUser      User              @relation(fields: [createdUserId], references: [id])
+  expenses         Expense[]
 
   @@index([status, createdAt])
   @@index([createdUserId])

@@ -324,13 +324,18 @@ function ReceivePaymentDialog({
   const [amount, setAmount] = useState("")
   const [method, setMethod] = useState<PaymentMethod>("PIX")
   const [error, setError] = useState<string | null>(null)
+  const [sendPromptDebtorId, setSendPromptDebtorId] = useState<string | null>(
+    null
+  )
   const registerPayment = useRegisterDebtPayment()
+  const statement = useDebtorStatement(sendPromptDebtorId ?? undefined)
   const balance = debt ? balanceOf(debt) : 0
 
   useEffect(() => {
     if (debt) setAmount(String(balance).replace(".", ","))
     setMethod("PIX")
     setError(null)
+    setSendPromptDebtorId(null)
   }, [debt, balance])
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -347,10 +352,62 @@ function ReceivePaymentDialog({
         debtorId: debt.debtor.id,
         input: { amount: parsedAmount, method },
       })
-      onClose()
+      setSendPromptDebtorId(debt.debtor.id)
     } catch (cause) {
       setError(getApiErrorMessage(cause))
     }
+  }
+
+  if (sendPromptDebtorId) {
+    return (
+      <Dialog
+        onOpenChange={(open) => !open && onClose()}
+        open={Boolean(debt)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pagamento registrado</DialogTitle>
+            <DialogDescription>
+              Deseja enviar o extrato atualizado para{" "}
+              {debt?.debtor?.name ?? debt?.clientName ?? "o cliente"} pelo
+              WhatsApp?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={onClose} type="button" variant="outline">
+              Não, obrigado
+            </Button>
+            {statement.data?.debtor.phone ? (
+              <a
+                className={buttonVariants({ variant: "outline" })}
+                href={whatsappStatementLink(statement.data)}
+                onClick={onClose}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <MessageCircle className="size-4" /> Enviar no WhatsApp
+              </a>
+            ) : (
+              <Button
+                disabled
+                title={
+                  statement.isLoading
+                    ? "Carregando..."
+                    : "Cliente sem telefone cadastrado"
+                }
+                type="button"
+                variant="outline"
+              >
+                {statement.isLoading && (
+                  <LoaderCircle className="size-4 animate-spin" />
+                )}
+                <MessageCircle className="size-4" /> Enviar no WhatsApp
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
   }
 
   return (

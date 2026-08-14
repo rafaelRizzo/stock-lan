@@ -58,6 +58,7 @@ import {
   useRestoreExpenseTemplate,
   useUpdateExpenseTemplate,
 } from "@/hooks/expenses/use-expense-templates"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type {
@@ -92,10 +93,11 @@ export function ExpenseTemplatesPage() {
     null
   )
   const [deleteTarget, setDeleteTarget] = useState<ExpenseTemplate | null>(null)
+  const debouncedSearch = useDebouncedValue(search)
   const templates = useAllExpenseTemplates({
     page,
     limit: pageSize,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: status || undefined,
     includeArchived: !status,
   })
@@ -417,6 +419,7 @@ function TemplateDialog({
   const [anchorDate, setAnchorDate] = useState(
     new Date().toISOString().slice(0, 10)
   )
+  const [notifyDaysBefore, setNotifyDaysBefore] = useState("")
   const [error, setError] = useState<string | null>(null)
   const create = useCreateExpenseTemplate()
   const update = useUpdateExpenseTemplate()
@@ -436,10 +439,14 @@ function TemplateDialog({
       setAnchorDate(
         (template.anchorDate ?? template.createdAt).slice(0, 10)
       )
+      setNotifyDaysBefore(
+        template.notifyDaysBefore != null ? String(template.notifyDaysBefore) : ""
+      )
     } else if (open) {
       setInput({ name: "", recurrence: "MONTHLY", defaultValue: 0, obs: "" })
       setValue("")
       setAnchorDate(new Date().toISOString().slice(0, 10))
+      setNotifyDaysBefore("")
     }
     setError(null)
   }, [open, template])
@@ -452,6 +459,16 @@ function TemplateDialog({
       return setError("Informe um valor padrão válido.")
     if (recurring && !anchorDate)
       return setError("Informe a data de referência da recorrência.")
+    const parsedNotifyDays = notifyDaysBefore
+      ? Number(notifyDaysBefore)
+      : undefined
+    if (
+      parsedNotifyDays !== undefined &&
+      (!Number.isInteger(parsedNotifyDays) ||
+        parsedNotifyDays < 0 ||
+        parsedNotifyDays > 365)
+    )
+      return setError("Informe um número de dias entre 0 e 365.")
 
     const payload: ExpenseTemplateInput = {
       ...input,
@@ -460,6 +477,7 @@ function TemplateDialog({
       anchorDate: recurring
         ? new Date(`${anchorDate}T12:00:00`).toISOString()
         : undefined,
+      notifyDaysBefore: recurring ? parsedNotifyDays : undefined,
       obs: input.obs?.trim() || undefined,
     }
     try {
@@ -544,37 +562,53 @@ function TemplateDialog({
             </label>
           </div>
           {recurring && (
-            <label className="grid gap-2 text-sm font-medium">
-              Data de referência
-              <Popover modal>
-                <PopoverTrigger
-                  render={
-                    <Button
-                      className="h-10 w-full justify-start rounded-xl border-input bg-input/50 px-3 text-left font-normal shadow-none hover:bg-input/70 dark:bg-input/50 dark:hover:bg-input/70"
-                      type="button"
-                      variant="outline"
-                    />
-                  }
-                >
-                  <CalendarDays className="mr-2 size-4 text-muted-foreground" />
-                  {format(
-                    new Date(`${anchorDate}T12:00:00`),
-                    "dd 'de' MMMM",
-                    { locale: ptBR }
-                  )}
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-auto p-0">
-                  <Calendar
-                    locale={ptBR}
-                    mode="single"
-                    onSelect={(next) =>
-                      next && setAnchorDate(format(next, "yyyy-MM-dd"))
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-2 text-sm font-medium">
+                Data de referência
+                <Popover modal>
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        className="h-10 w-full justify-start rounded-xl border-input bg-input/50 px-3 text-left font-normal shadow-none hover:bg-input/70 dark:bg-input/50 dark:hover:bg-input/70"
+                        type="button"
+                        variant="outline"
+                      />
                     }
-                    selected={new Date(`${anchorDate}T12:00:00`)}
-                  />
-                </PopoverContent>
-              </Popover>
-            </label>
+                  >
+                    <CalendarDays className="mr-2 size-4 text-muted-foreground" />
+                    {format(
+                      new Date(`${anchorDate}T12:00:00`),
+                      "dd 'de' MMMM",
+                      { locale: ptBR }
+                    )}
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-auto p-0">
+                    <Calendar
+                      locale={ptBR}
+                      mode="single"
+                      onSelect={(next) =>
+                        next && setAnchorDate(format(next, "yyyy-MM-dd"))
+                      }
+                      selected={new Date(`${anchorDate}T12:00:00`)}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </label>
+              <label className="grid gap-2 text-sm font-medium">
+                Avisar com quantos dias de antecedência
+                <Input
+                  className="h-10 rounded-xl"
+                  inputMode="numeric"
+                  onChange={(event) =>
+                    setNotifyDaysBefore(
+                      event.target.value.replace(/[^0-9]/g, "")
+                    )
+                  }
+                  placeholder="Opcional"
+                  value={notifyDaysBefore}
+                />
+              </label>
+            </div>
           )}
           <label className="grid gap-2 text-sm font-medium">
             Observação

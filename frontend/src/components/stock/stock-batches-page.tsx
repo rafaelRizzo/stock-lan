@@ -16,6 +16,7 @@ import {
   Plus,
   Search,
   Trash2,
+  X,
 } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -66,6 +67,7 @@ import {
   useUpdateStockBatch,
 } from "@/hooks/stock/use-stock-batches"
 import { useSuppliers } from "@/hooks/suppliers/use-suppliers"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type { BatchStatus, StockBatch } from "@/services/stock.service"
@@ -79,7 +81,13 @@ const statusLabels: Record<BatchStatus, string> = {
   ARCHIVED: "Arquivado",
 }
 
-export function StockBatchesPage() {
+export function StockBatchesPage({
+  filterProductId,
+  filterProductName,
+}: {
+  filterProductId?: string
+  filterProductName?: string
+} = {}) {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<BatchStatus | "">("")
@@ -88,13 +96,16 @@ export function StockBatchesPage() {
   const [open, setOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<StockBatch | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<StockBatch | null>(null)
+  const [productFilter, setProductFilter] = useState(filterProductId)
+  const debouncedSearch = useDebouncedValue(search)
   const batches = useStockBatches({
     page,
     limit: pageSize,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: status || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
+    productId: productFilter,
   })
   const { data: user } = useCurrentUser()
   const canManage = user?.role === "ADMIN" || user?.role === "MANAGER"
@@ -106,7 +117,7 @@ export function StockBatchesPage() {
             <PackagePlus className="size-4" /> Operação
           </p>
           <h2 className="mt-2 text-3xl font-semibold tracking-[-0.045em]">
-            Entradas
+            Saídas
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Registre compras e acompanhe os lotes recebidos.
@@ -116,10 +127,29 @@ export function StockBatchesPage() {
           className="h-10 rounded-xl bg-[#173f31] text-white hover:bg-[#245742]"
           onClick={() => setOpen(true)}
         >
-          <Plus className="size-4" /> Nova entrada
+          <Plus className="size-4" /> Nova saída
         </Button>
       </div>
       <section className="rounded-2xl border border-[#e5e9e4] bg-background dark:border-border">
+        {productFilter && (
+          <div className="flex items-center gap-2 border-b border-[#e5e9e4] bg-[#eaf4ec] px-4 py-2 text-sm text-[#2e7152] dark:border-border dark:bg-emerald-950/40 dark:text-emerald-300">
+            <span>
+              Filtrando saídas de{" "}
+              <strong>{filterProductName || "produto selecionado"}</strong>
+            </span>
+            <Button
+              className="h-6 rounded-lg px-2 text-xs text-[#2e7152] hover:bg-[#dcefe1] dark:text-emerald-300 dark:hover:bg-emerald-950"
+              onClick={() => {
+                setProductFilter(undefined)
+                setPage(1)
+              }}
+              size="sm"
+              variant="ghost"
+            >
+              <X className="size-3.5" /> Remover filtro
+            </Button>
+          </div>
+        )}
         <div className="flex flex-col gap-3 border-b border-[#e5e9e4] p-4 sm:flex-row sm:items-center dark:border-border">
           <div className="relative w-full sm:w-[28rem]">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -167,7 +197,7 @@ export function StockBatchesPage() {
             <TableRow>
               <TableHead className="pl-5">Produto</TableHead>
               <TableHead>Fornecedor</TableHead>
-              <TableHead>Entrada</TableHead>
+              <TableHead>Saída</TableHead>
               <TableHead>Restante</TableHead>
               <TableHead className="hidden md:table-cell">Data</TableHead>
               <TableHead>Status</TableHead>
@@ -204,7 +234,7 @@ export function StockBatchesPage() {
                   className="h-52 text-center text-muted-foreground"
                   colSpan={7}
                 >
-                  Nenhuma entrada encontrada.
+                  Nenhuma saída encontrada.
                 </TableCell>
               </TableRow>
             )}
@@ -431,7 +461,7 @@ function EntryDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {editing ? "Editar entrada" : "Nova entrada"}
+            {editing ? "Editar saída" : "Nova saída"}
           </DialogTitle>
           <DialogDescription>
             {editing
@@ -599,7 +629,7 @@ function EntryDialog({
               {(create.isPending || update.isPending) && (
                 <LoaderCircle className="size-4 animate-spin" />
               )}{" "}
-              {editing ? "Salvar alterações" : "Registrar entrada"}
+              {editing ? "Salvar alterações" : "Registrar saída"}
             </Button>
           </DialogFooter>
         </form>
@@ -632,13 +662,13 @@ function DeleteEntryDialog({
     <Dialog open={Boolean(batch)} onOpenChange={(value) => !value && onClose()}>
       <DialogContent className="sm:max-w-md" initialFocus={confirmRef}>
         <DialogHeader>
-          <DialogTitle>Excluir entrada?</DialogTitle>
+          <DialogTitle>Excluir saída?</DialogTitle>
           <DialogDescription>
             O lote de {batch?.product.name} será removido do estoque.
           </DialogDescription>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Entradas com movimentações posteriores não podem ser excluídas.
+          Saídas com movimentações posteriores não podem ser excluídas.
         </p>
         {error && (
           <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -659,7 +689,7 @@ function DeleteEntryDialog({
             {remove.isPending && (
               <LoaderCircle className="size-4 animate-spin" />
             )}{" "}
-            Excluir entrada
+            Excluir saída
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -686,7 +716,7 @@ function Pagination({
 }) {
   return (
     <div className="flex items-center justify-between border-t border-[#e5e9e4] px-4 py-3 text-sm text-muted-foreground dark:border-border">
-      <span>{data?.total ?? 0} entradas</span>
+      <span>{data?.total ?? 0} saídas</span>
       <div className="flex items-center gap-2">
         <Button
           disabled={page <= 1}

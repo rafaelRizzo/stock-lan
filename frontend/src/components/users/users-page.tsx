@@ -47,6 +47,7 @@ import {
   useUpdateUser,
   useUsers,
 } from "@/hooks/users/use-users"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type {
@@ -66,10 +67,11 @@ export function UsersPage() {
   const [archiveTarget, setArchiveTarget] = useState<User | null>(null)
   const [editTarget, setEditTarget] = useState<User | null>(null)
   const [resetTarget, setResetTarget] = useState<User | null>(null)
+  const debouncedSearch = useDebouncedValue(search)
   const users = useUsers({
     page,
     limit: pageSize,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: status || undefined,
   })
   const archive = useArchiveUser()
