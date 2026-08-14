@@ -98,6 +98,12 @@ const dashboardModuleRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dashboard/$",
   component: DashboardRoute,
+  validateSearch: (
+    search: Record<string, unknown>
+  ): { productId?: string; productName?: string } => ({
+    ...(typeof search.productId === "string" ? { productId: search.productId } : {}),
+    ...(typeof search.productName === "string" ? { productName: search.productName } : {}),
+  }),
 })
 const setupRoute = createRoute({
   getParentRoute: () => rootRoute,

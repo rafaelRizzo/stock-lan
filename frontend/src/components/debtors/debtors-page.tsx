@@ -48,6 +48,7 @@ import {
   useRestoreDebtor,
   useUpdateDebtor,
 } from "@/hooks/debtors/use-debtors"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type {
@@ -72,10 +73,11 @@ export function DebtorsPage() {
   const [editTarget, setEditTarget] = useState<Debtor | null>(null)
   const [archiveTarget, setArchiveTarget] = useState<Debtor | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Debtor | null>(null)
+  const debouncedSearch = useDebouncedValue(search)
   const debtors = useDebtors({
     page,
     limit: pageSize,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: status || undefined,
     includeArchived: !status,
   })

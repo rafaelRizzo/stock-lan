@@ -62,6 +62,7 @@ import {
   useExpenses,
   useUpdateExpense,
 } from "@/hooks/expenses/use-expenses"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type {
@@ -88,10 +89,11 @@ export function ExpensesPage() {
   const [open, setOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Expense | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null)
+  const debouncedSearch = useDebouncedValue(search)
   const expenses = useExpenses({
     page,
     limit: pageSize,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: status || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,

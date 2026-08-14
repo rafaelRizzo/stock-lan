@@ -97,6 +97,7 @@ export const stockController = {
                 ...(query.status ? { status: query.status } : {}),
                 ...(dateBuy ? { dateBuy } : {}),
                 ...(searchIds ? { id: { in: searchIds } } : {}),
+                ...(query.productId ? { productId: query.productId } : {}),
             },
             getSkip(query),
             query.limit,

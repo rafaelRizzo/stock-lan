@@ -149,7 +149,12 @@ http.interceptors.response.use(
   }
 )
 
-export type LinkedRecordDetail = { label: string; count: number; path: string }
+export type LinkedRecordDetail = {
+  label: string
+  count: number
+  path: string
+  query?: { productId?: string; productName?: string }
+}
 
 export function getApiErrorDetails(error: unknown): LinkedRecordDetail[] | undefined {
   if (axios.isAxiosError<{ details?: LinkedRecordDetail[] }>(error))

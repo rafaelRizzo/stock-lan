@@ -22,6 +22,7 @@ export type StockBatchesParams = {
   status?: BatchStatus
   dateFrom?: string
   dateTo?: string
+  productId?: string
 }
 export type PaginatedStockBatches = {
   data: StockBatch[]

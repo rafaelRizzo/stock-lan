@@ -27,6 +27,7 @@ const prismaMock = {
         findMany: mock(),
         count: mock(),
         findUnique: mock(),
+        findFirst: mock(),
         create: mock(),
         delete: mock(),
         deleteMany: mock(),
@@ -55,7 +56,10 @@ const { expensesService } = await import("../../src/modules/expenses/expenses.se
 const { cashMovementsService } = await import("../../src/modules/cash-movements/cash-movements.service.js");
 const { catalogService } = await import("../../src/modules/catalog/catalog.service.js");
 const { catalogResources } = await import("../../src/modules/catalog/catalog.schemas.js");
-const { runExpenseRecurrenceJob } = await import("../../src/jobs/expense-recurrence.job.js");
+const { runExpenseRecurrenceJob, runExpenseUpcomingNotificationJob } = await import(
+    "../../src/jobs/expense-recurrence.job.js"
+);
+const { addDays, utcMidnight } = await import("../../src/lib/recurrence.js");
 const { salesService } = await import("../../src/modules/sales/sales.service.js");
 
 const expenseTemplateResource = catalogResources.find((resource) => resource.delegate === "expenseTemplate");
@@ -403,5 +407,71 @@ test("expense recurrence job skips the template when another process already cla
     prismaMock.expenseTemplate.updateMany.mockResolvedValue({ count: 0 });
     await runExpenseRecurrenceJob();
     expect(prismaMock.expense.create).not.toHaveBeenCalled();
+    expect(prismaMock.notification.create).not.toHaveBeenCalled();
+});
+
+test("expense upcoming notification job does nothing when no template is due for a heads-up", async () => {
+    prismaMock.expenseTemplate.findMany.mockResolvedValue([]);
+    await runExpenseUpcomingNotificationJob();
+    expect(prismaMock.notification.create).not.toHaveBeenCalled();
+});
+
+test("expense upcoming notification job creates a notification once inside the notify window", async () => {
+    const today = utcMidnight(new Date());
+    const nextDueDate = addDays(today, 3);
+    prismaMock.expenseTemplate.findMany.mockResolvedValue([
+        {
+            id: "et1",
+            name: "Aluguel",
+            recurrence: "MONTHLY",
+            nextDueDate,
+            notifyDaysBefore: 5,
+            defaultValue: new Prisma.Decimal(150),
+        },
+    ]);
+    prismaMock.notification.findFirst.mockResolvedValue(null);
+    await runExpenseUpcomingNotificationJob();
+    const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(150);
+    expect(prismaMock.notification.create).toHaveBeenCalledWith({
+        data: {
+            type: "EXPENSE_UPCOMING",
+            title: "Despesa próxima do vencimento",
+            message: `Aluguel (${currency}) vence em 3 dias.`,
+            entityType: "expense-template",
+            entityId: `et1:${nextDueDate.toISOString().slice(0, 10)}`,
+        },
+    });
+});
+
+test("expense upcoming notification job stays quiet before entering the notify window", async () => {
+    const today = utcMidnight(new Date());
+    prismaMock.expenseTemplate.findMany.mockResolvedValue([
+        {
+            id: "et1",
+            name: "Aluguel",
+            recurrence: "MONTHLY",
+            nextDueDate: addDays(today, 10),
+            notifyDaysBefore: 5,
+            defaultValue: new Prisma.Decimal(150),
+        },
+    ]);
+    await runExpenseUpcomingNotificationJob();
+    expect(prismaMock.notification.create).not.toHaveBeenCalled();
+});
+
+test("expense upcoming notification job does not duplicate an already-sent notification", async () => {
+    const today = utcMidnight(new Date());
+    prismaMock.expenseTemplate.findMany.mockResolvedValue([
+        {
+            id: "et1",
+            name: "Aluguel",
+            recurrence: "MONTHLY",
+            nextDueDate: addDays(today, 2),
+            notifyDaysBefore: 5,
+            defaultValue: new Prisma.Decimal(150),
+        },
+    ]);
+    prismaMock.notification.findFirst.mockResolvedValue({ id: "n1" });
+    await runExpenseUpcomingNotificationJob();
     expect(prismaMock.notification.create).not.toHaveBeenCalled();
 });

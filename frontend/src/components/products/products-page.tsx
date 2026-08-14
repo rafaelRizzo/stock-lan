@@ -58,6 +58,7 @@ import { useCurrentUser } from "@/hooks/auth/use-current-user"
 import { useQuantityTypes } from "@/hooks/quantity-types/use-quantity-types"
 import { useAddNoCostStock } from "@/hooks/stock/use-stock-batches"
 import { useSuppliers } from "@/hooks/suppliers/use-suppliers"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { DEFAULT_PAGE_SIZE, PRODUCT_TYPE_LABELS } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type { Product, ProductStatus, ProductType } from "@/services/products.service"
@@ -79,10 +80,11 @@ export function ProductsPage() {
   const [editTarget, setEditTarget] = useState<Product | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
   const [stockTarget, setStockTarget] = useState<Product | null>(null)
+  const debouncedSearch = useDebouncedValue(search)
   const products = useProducts({
     page,
     limit: pageSize,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: status || undefined,
     includeArchived: !status,
     stockOrder,

@@ -48,6 +48,7 @@ import {
   useRestoreQuantityType,
   useUpdateQuantityType,
 } from "@/hooks/quantity-types/use-quantity-types"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type {
@@ -70,10 +71,11 @@ export function QuantityTypesPage() {
   const [target, setTarget] = useState<QuantityType | null>(null)
   const [editTarget, setEditTarget] = useState<QuantityType | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<QuantityType | null>(null)
+  const debouncedSearch = useDebouncedValue(search)
   const types = useQuantityTypes({
     page,
     limit: pageSize,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: status || undefined,
     includeArchived: !status,
   })

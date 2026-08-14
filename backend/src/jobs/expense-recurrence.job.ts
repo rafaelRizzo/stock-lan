@@ -58,3 +58,54 @@ export async function runExpenseRecurrenceJob() {
         await invalidatePrefix("catalog:expenseTemplate:");
     }
 }
+
+function daysUntilLabel(days: number) {
+    if (days <= 0) return "vence hoje";
+    if (days === 1) return "vence amanhã";
+    return `vence em ${days} dias`;
+}
+
+export async function runExpenseUpcomingNotificationJob() {
+    const today = utcMidnight(new Date());
+    const horizon = addDays(today, 365);
+
+    const templates = await prisma.expenseTemplate.findMany({
+        where: {
+            status: "ACTIVE",
+            recurrence: { not: "ONE_TIME" },
+            notifyDaysBefore: { not: null },
+            nextDueDate: { gte: today, lte: horizon },
+        },
+    });
+    if (!templates.length) return;
+
+    let processed = 0;
+    for (const template of templates) {
+        const nextDueDate = template.nextDueDate as Date;
+        const notifyAt = addDays(nextDueDate, -(template.notifyDaysBefore as number));
+        if (notifyAt > today) continue;
+
+        // Uma notificação por ocorrência: entityId embute a data de vencimento,
+        // então uma nova é criada só quando o template avança pra próxima ocorrência.
+        const entityId = `${template.id}:${nextDueDate.toISOString().slice(0, 10)}`;
+        const alreadyNotified = await prisma.notification.findFirst({
+            where: { type: "EXPENSE_UPCOMING", entityId },
+            select: { id: true },
+        });
+        if (alreadyNotified) continue;
+
+        const daysLeft = Math.round((nextDueDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+        await prisma.notification.create({
+            data: {
+                type: "EXPENSE_UPCOMING",
+                title: "Despesa próxima do vencimento",
+                message: `${template.name} (${currency(Number(template.defaultValue))}) ${daysUntilLabel(daysLeft)}.`,
+                entityType: "expense-template",
+                entityId,
+            },
+        });
+        processed++;
+    }
+
+    if (processed) await invalidate("dashboard");
+}

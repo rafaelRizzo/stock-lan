@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link, useLocation, useNavigate } from "@tanstack/react-router"
+import { Link, useLocation, useNavigate, useSearch } from "@tanstack/react-router"
 import {
   ArrowUpRight,
   Bell,
@@ -55,6 +55,10 @@ import type { DashboardSummary } from "@/services/reports.service"
 export function DashboardScreen() {
   const { pathname } = useLocation()
   const { data: user } = useCurrentUser()
+  const moduleSearch = useSearch({ strict: false }) as {
+    productId?: string
+    productName?: string
+  }
   const isOverview = pathname === "/dashboard"
   const title = pageTitles.get(pathname) ?? "Módulo"
 
@@ -100,9 +104,15 @@ export function DashboardScreen() {
           ) : pathname === "/dashboard/debtors" ? (
             <DebtorsPage />
           ) : pathname === "/dashboard/sales" ? (
-            <SalesPage />
+            <SalesPage
+              filterProductId={moduleSearch.productId}
+              filterProductName={moduleSearch.productName}
+            />
           ) : pathname === "/dashboard/stock/batches" ? (
-            <StockBatchesPage />
+            <StockBatchesPage
+              filterProductId={moduleSearch.productId}
+              filterProductName={moduleSearch.productName}
+            />
           ) : pathname === "/dashboard/stock/movements" ? (
             <StockMovementsPage />
           ) : pathname === "/dashboard/stock/alerts" ? (

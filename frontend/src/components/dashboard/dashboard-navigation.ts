@@ -38,7 +38,7 @@ export const navigationGroups: NavigationGroup[] = [
     label: "OPERAÇÃO",
     items: [
       { label: "Vendas", to: "/dashboard/sales", icon: ShoppingCart },
-      { label: "Entradas", to: "/dashboard/stock/batches", icon: PackagePlus },
+      { label: "Saídas", to: "/dashboard/stock/batches", icon: PackagePlus },
       {
         label: "Movimentações",
         to: "/dashboard/stock/movements",

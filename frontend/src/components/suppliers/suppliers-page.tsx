@@ -49,6 +49,7 @@ import {
   useSuppliers,
   useUpdateSupplier,
 } from "@/hooks/suppliers/use-suppliers"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
 import type {
@@ -79,10 +80,11 @@ export function SuppliersPage() {
   const [editTarget, setEditTarget] = useState<Supplier | null>(null)
   const [archiveTarget, setArchiveTarget] = useState<Supplier | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null)
+  const debouncedSearch = useDebouncedValue(search)
   const suppliers = useSuppliers({
     page,
     limit: pageSize,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: status || undefined,
     includeArchived: !status,
   })
