@@ -86,7 +86,8 @@ export function CashMovementsPage() {
             Caixa
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Registre aportes e sangrias que não vêm de vendas ou despesas.
+            Registre aportes e sangrias manuais. Saídas de estoque geram
+            sangria automática aqui.
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -236,15 +237,17 @@ function CashMovementRow({
         {formatDate(movement.createdAt)}
       </TableCell>
       <TableCell>
-        <Button
-          aria-label="Excluir movimentação"
-          className="text-muted-foreground hover:text-destructive"
-          onClick={() => onDelete(movement)}
-          size="icon-sm"
-          variant="ghost"
-        >
-          <Trash2 className="size-4" />
-        </Button>
+        {!movement.stockBatchId && (
+          <Button
+            aria-label="Excluir movimentação"
+            className="text-muted-foreground hover:text-destructive"
+            onClick={() => onDelete(movement)}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        )}
       </TableCell>
     </TableRow>
   )

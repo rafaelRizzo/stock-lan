@@ -44,6 +44,8 @@ export const cashMovementsService = {
     delete: async (id: string) => {
         const movement = await prisma.cashMovement.findUnique({ where: { id } });
         if (!movement) throw new AppError(404, "Cash movement not found");
+        if (movement.stockBatchId)
+            throw new AppError(409, "Cash movement linked to a stock batch cannot be deleted directly");
         await prisma.cashMovement.delete({ where: { id } });
     },
 };

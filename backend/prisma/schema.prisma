@@ -208,6 +208,7 @@ model StockBatch {
   createdUser    User            @relation(fields: [createdUserId], references: [id])
   saleItems      SaleItem[]
   movements      StockMovement[]
+  cashMovement   CashMovement?
 
   @@index([supplierId])
   @@index([productId, quantityLeft])
@@ -353,9 +354,11 @@ model CashMovement {
   type          CashMovementType
   value         Decimal          @db.Decimal(14, 2)
   obs           String?
+  stockBatchId  String?          @unique
   createdUserId String
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
+  stockBatch    StockBatch?      @relation(fields: [stockBatchId], references: [id], onDelete: Cascade)
   createdUser   User             @relation(fields: [createdUserId], references: [id])
 
   @@index([type, createdAt])

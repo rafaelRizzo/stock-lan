@@ -68,6 +68,15 @@ export const stockService = {
                     createdUserId: userId,
                 },
             });
+            await tx.cashMovement.create({
+                data: {
+                    type: "WITHDRAWAL",
+                    value: new Prisma.Decimal(input.quantityIn).mul(input.priceBuy),
+                    obs: `Reposição de estoque (lote ${batch.id})`,
+                    stockBatchId: batch.id,
+                    createdUserId: userId,
+                },
+            });
             return batch;
         });
     },
@@ -89,7 +98,11 @@ export const stockService = {
         prisma.$transaction(async (tx) => {
             const current = await tx.stockBatch.findUnique({
                 where: { id },
-                include: { saleItems: { select: { id: true } }, movements: { select: { type: true } } },
+                include: {
+                    saleItems: { select: { id: true } },
+                    movements: { select: { type: true } },
+                    cashMovement: true,
+                },
             });
             if (!current) throw new AppError(404, "Stock batch not found");
             if (current.saleItems.length || current.movements.some((movement) => movement.type !== "IN"))
@@ -102,6 +115,20 @@ export const stockService = {
                 where: { stockBatchId: id, type: "IN" },
                 data: { productId: input.productId, quantity: input.quantityIn, costUnit: input.priceBuy },
             });
+            const value = new Prisma.Decimal(input.quantityIn).mul(input.priceBuy);
+            if (current.cashMovement) {
+                await tx.cashMovement.update({ where: { id: current.cashMovement.id }, data: { value } });
+            } else {
+                await tx.cashMovement.create({
+                    data: {
+                        type: "WITHDRAWAL",
+                        value,
+                        obs: `Reposição de estoque (lote ${batch.id})`,
+                        stockBatchId: batch.id,
+                        createdUserId: current.createdUserId,
+                    },
+                });
+            }
             return { batch, previousProductId: current.productId };
         }),
 

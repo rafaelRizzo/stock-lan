@@ -5,7 +5,7 @@ process.env.REDIS_URL = "redis://localhost:6379";
 process.env.JWT_SECRET = "test-jwt-secret-with-at-least-32-characters";
 process.env.JWT_REFRESH_SECRET = "test-refresh-secret-with-at-least-32-chars";
 
-const { getOrSetLocal, invalidatePrefix, localCache } = await import("../../src/lib/cache.js");
+const { getOrSetLocal, invalidate, invalidatePrefix, localCache, redis } = await import("../../src/lib/cache.js");
 
 test("returns NodeCache L1 entries before executing the factory", async () => {
     localCache.flushAll();
@@ -25,4 +25,15 @@ test("invalidates all local entries by prefix", async () => {
     expect(localCache.has("sales:list:1")).toBeFalse();
     expect(localCache.has("sales:id:1")).toBeFalse();
     expect(localCache.has("stock:product:1")).toBeTrue();
+});
+
+test("invalidate removes local keys and skips Redis when disconnected", async () => {
+    localCache.set("dashboard", true);
+    expect(redis.isOpen).toBeFalse();
+    await invalidate("dashboard");
+    expect(localCache.has("dashboard")).toBeFalse();
+});
+
+test("invalidate is a no-op when no keys are given", async () => {
+    await expect(invalidate()).resolves.toBeUndefined();
 });
