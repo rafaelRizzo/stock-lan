@@ -95,7 +95,7 @@ export const reportsService = {
                     ${replenishmentWhere}
                 `,
                 prisma.cashMovement.findMany({
-                    where: { createdAt: range },
+                    where: { createdAt: range, stockBatchId: null },
                     select: { type: true, value: true, createdAt: true },
                 }),
             ]);

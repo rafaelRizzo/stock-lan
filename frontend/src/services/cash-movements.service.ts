@@ -6,6 +6,7 @@ export type CashMovement = {
   type: CashMovementType
   value: string | number
   obs: string | null
+  stockBatchId: string | null
   createdAt: string
 }
 export type CashMovementsParams = {

@@ -75,6 +75,7 @@ const prismaMock = {
         count: mock(),
         aggregate: mock(),
         create: mock(),
+        update: mock(),
         findUnique: mock(),
         delete: mock(),
     },
@@ -223,6 +224,7 @@ test("includes manual cash movements in the cash flow", async () => {
     expect(result.cashFlow).toHaveLength(1);
     expect(result.cashFlow[0].income.toString()).toBe("50");
     expect(result.cashFlow[0].expense.toString()).toBe("15");
+    expect(prismaMock.cashMovement.findMany.mock.calls[0][0].where).toMatchObject({ stockBatchId: null });
 });
 
 test("cash movements balance nets deposits against withdrawals", async () => {
@@ -236,6 +238,12 @@ test("cash movements balance nets deposits against withdrawals", async () => {
 test("cash movement delete throws when not found", async () => {
     prismaMock.cashMovement.findUnique.mockResolvedValue(null);
     await expect(cashMovementsService.delete("missing")).rejects.toThrow("Cash movement not found");
+    expect(prismaMock.cashMovement.delete).not.toHaveBeenCalled();
+});
+
+test("cash movement delete rejects a movement linked to a stock batch", async () => {
+    prismaMock.cashMovement.findUnique.mockResolvedValue({ id: "cm1", stockBatchId: "b1" });
+    await expect(cashMovementsService.delete("cm1")).rejects.toMatchObject({ statusCode: 409 });
     expect(prismaMock.cashMovement.delete).not.toHaveBeenCalled();
 });
 
@@ -268,6 +276,14 @@ test("creates a stock batch and inbound movement in one transaction", async () =
     );
     expect(result).toEqual({ id: "batch", productId: "product" });
     expect(prismaMock.stockMovement.create).toHaveBeenCalledTimes(1);
+    const cashMovementData = prismaMock.cashMovement.create.mock.calls[0][0].data;
+    expect(cashMovementData.value.toString()).toBe("30");
+    expect(cashMovementData).toMatchObject({
+        type: "WITHDRAWAL",
+        obs: "Reposição de estoque (lote batch)",
+        stockBatchId: "batch",
+        createdUserId: "user",
+    });
 });
 
 test("product create requires priceSell unless the product is a raw material", async () => {
@@ -1316,12 +1332,14 @@ test("stock updateBatch rejects editing a batch with non-inbound movements", asy
     ).rejects.toMatchObject({ statusCode: 409 });
 });
 
-test("stock updateBatch updates the batch and its inbound movement", async () => {
+test("stock updateBatch updates the linked cash movement value", async () => {
     prismaMock.stockBatch.findUnique.mockResolvedValue({
         id: "b1",
         productId: "old-product",
+        createdUserId: "user1",
         saleItems: [],
         movements: [{ type: "IN" }],
+        cashMovement: { id: "cm1" },
     });
     prismaMock.stockBatch.update.mockResolvedValue({ id: "b1", productId: "new-product" });
     prismaMock.stockMovement.updateMany.mockResolvedValue({ count: 1 });
@@ -1335,6 +1353,41 @@ test("stock updateBatch updates the batch and its inbound movement", async () =>
         notifyLimit: false,
     });
     expect(result).toEqual({ batch: { id: "b1", productId: "new-product" }, previousProductId: "old-product" });
+    expect(prismaMock.cashMovement.update).toHaveBeenCalledTimes(1);
+    const [{ where, data }] = prismaMock.cashMovement.update.mock.calls[0];
+    expect(where).toEqual({ id: "cm1" });
+    expect(data.value.toString()).toBe("50");
+    expect(prismaMock.cashMovement.create).not.toHaveBeenCalled();
+});
+
+test("stock updateBatch creates a cash movement when the batch had none", async () => {
+    prismaMock.stockBatch.findUnique.mockResolvedValue({
+        id: "b1",
+        productId: "old-product",
+        createdUserId: "user1",
+        saleItems: [],
+        movements: [{ type: "IN" }],
+        cashMovement: null,
+    });
+    prismaMock.stockBatch.update.mockResolvedValue({ id: "b1", productId: "new-product" });
+    prismaMock.stockMovement.updateMany.mockResolvedValue({ count: 1 });
+    await stockService.updateBatch("b1", {
+        supplierId: "s1",
+        productId: "new-product",
+        quantityTypeId: "qt1",
+        quantityIn: 5,
+        priceBuy: 10,
+        dateBuy: new Date(),
+        notifyLimit: false,
+    });
+    expect(prismaMock.cashMovement.update).not.toHaveBeenCalled();
+    const cashMovementData = prismaMock.cashMovement.create.mock.calls[0][0].data;
+    expect(cashMovementData.value.toString()).toBe("50");
+    expect(cashMovementData).toMatchObject({
+        type: "WITHDRAWAL",
+        stockBatchId: "b1",
+        createdUserId: "user1",
+    });
 });
 
 test("stock deleteBatch throws 404 when the batch is missing", async () => {
