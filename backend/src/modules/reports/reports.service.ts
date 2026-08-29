@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { getOrSetLocal } from "../../lib/cache.js";
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
+import { cashMovementsService } from "../cash-movements/cash-movements.service.js";
 
 const cashFlowDays = 10;
 
@@ -54,6 +55,7 @@ export const reportsService = {
                 stockBatches,
                 replenishment,
                 cashMovements,
+                cashBalance,
             ] = await Promise.all([
                 prisma.sale.aggregate({
                     where: { status: "PAID", ...(metricRange ? { createdAt: metricRange } : {}) },
@@ -95,9 +97,10 @@ export const reportsService = {
                     ${replenishmentWhere}
                 `,
                 prisma.cashMovement.findMany({
-                    where: { createdAt: range, stockBatchId: null },
+                    where: { createdAt: range, stockBatchId: null, paymentId: null, expenseId: null },
                     select: { type: true, value: true, createdAt: true },
                 }),
+                cashMovementsService.balance(),
             ]);
             const revenue = paidSales._sum.total ?? new Prisma.Decimal(0);
             const expenses = paidExpenses._sum.value ?? new Prisma.Decimal(0);
@@ -135,6 +138,7 @@ export const reportsService = {
                 lowStock,
                 stockReplenishment,
                 cashFlow,
+                cashBalance: cashBalance.balance,
             };
         });
     },
@@ -221,6 +225,15 @@ export const reportsService = {
                 const take = Prisma.Decimal.min(balance, remaining);
                 const payment = await tx.payment.create({
                     data: { saleId: sale.id, amount: take, method, obs, paidAt, createdUserId: userId },
+                });
+                await tx.cashMovement.create({
+                    data: {
+                        type: "DEPOSIT",
+                        value: payment.amount,
+                        obs: `Venda (${sale.id})`,
+                        paymentId: payment.id,
+                        createdUserId: userId,
+                    },
                 });
                 if (take.equals(balance)) await tx.sale.update({ where: { id: sale.id }, data: { status: "PAID" } });
                 remaining = remaining.sub(take);

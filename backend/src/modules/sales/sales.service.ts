@@ -103,10 +103,20 @@ export const salesService = {
                     },
                 });
                 await persistAllocations(tx, sale.id, allocations, userId);
-                if (input.status === "PAID" && input.paymentMethod)
-                    await tx.payment.create({
+                if (input.status === "PAID" && input.paymentMethod) {
+                    const payment = await tx.payment.create({
                         data: { saleId: sale.id, amount: total, method: input.paymentMethod, createdUserId: userId },
                     });
+                    await tx.cashMovement.create({
+                        data: {
+                            type: "DEPOSIT",
+                            value: payment.amount,
+                            obs: `Venda (${sale.id})`,
+                            paymentId: payment.id,
+                            createdUserId: userId,
+                        },
+                    });
+                }
                 return tx.sale.findUniqueOrThrow({ where: { id: sale.id }, include: { items: true, payments: true } });
             },
             { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -141,10 +151,20 @@ export const salesService = {
                     },
                 });
                 await persistAllocations(tx, saleId, allocations, userId);
-                if (input.status === "PAID" && input.paymentMethod)
-                    await tx.payment.create({
+                if (input.status === "PAID" && input.paymentMethod) {
+                    const payment = await tx.payment.create({
                         data: { saleId, amount: total, method: input.paymentMethod, createdUserId: userId },
                     });
+                    await tx.cashMovement.create({
+                        data: {
+                            type: "DEPOSIT",
+                            value: payment.amount,
+                            obs: `Venda (${saleId})`,
+                            paymentId: payment.id,
+                            createdUserId: userId,
+                        },
+                    });
+                }
                 return tx.sale.findUniqueOrThrow({ where: { id: saleId }, include: { items: true, payments: true } });
             },
             { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -211,6 +231,15 @@ export const salesService = {
             const paid = sale.payments.reduce((total, payment) => total.add(payment.amount), new Prisma.Decimal(0));
             if (paid.add(amount).greaterThan(sale.total)) throw new AppError(409, "Payment exceeds sale total");
             const payment = await tx.payment.create({ data: { saleId, amount, method, obs, createdUserId: userId } });
+            await tx.cashMovement.create({
+                data: {
+                    type: "DEPOSIT",
+                    value: payment.amount,
+                    obs: `Venda (${saleId})`,
+                    paymentId: payment.id,
+                    createdUserId: userId,
+                },
+            });
             if (paid.add(amount).equals(sale.total))
                 await tx.sale.update({ where: { id: saleId }, data: { status: "PAID" } });
             return payment;

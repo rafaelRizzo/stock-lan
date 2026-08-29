@@ -11,6 +11,7 @@ import {
   ReceiptText,
   Trash2,
   TrendingUp,
+  Wallet,
 } from "lucide-react"
 
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
@@ -307,7 +308,14 @@ function DashboardOverview({ userName }: { userName?: string }) {
         </Link>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+        <MetricCard
+          icon={Wallet}
+          label="Valor em caixa"
+          loading={isLoading}
+          tone="indigo"
+          value={formatCurrency(data?.cashBalance)}
+        />
         <MetricCard
           icon={CircleDollarSign}
           label="Faturamento"
@@ -513,7 +521,7 @@ function MetricCard({
   icon: typeof Box
   label: string
   loading: boolean
-  tone: "green" | "amber" | "rose" | "blue"
+  tone: "green" | "amber" | "rose" | "blue" | "indigo"
   value: string
 }) {
   const tones = {
@@ -522,6 +530,8 @@ function MetricCard({
     amber: "bg-[#fff2da] text-[#a46711] dark:bg-amber-950 dark:text-amber-300",
     rose: "bg-[#fdebed] text-[#b84c5d] dark:bg-rose-950 dark:text-rose-300",
     blue: "bg-[#e7f1fb] text-[#3976a9] dark:bg-sky-950 dark:text-sky-300",
+    indigo:
+      "bg-[#eef0fb] text-[#4b4fb0] dark:bg-indigo-950 dark:text-indigo-300",
   }
   return (
     <article className="rounded-2xl border border-[#e5e9e4] bg-background p-5 dark:border-border">
