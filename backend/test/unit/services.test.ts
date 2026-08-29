@@ -175,6 +175,8 @@ test("builds dashboard totals", async () => {
     prismaMock.$queryRaw.mockResolvedValue([{ total: new Prisma.Decimal(40) }]);
     prismaMock.stockBatch.count.mockResolvedValue(2);
     prismaMock.cashMovement.findMany.mockResolvedValue([]);
+    prismaMock.cashMovement.aggregate.mockResolvedValueOnce({ _sum: { value: new Prisma.Decimal(200) } });
+    prismaMock.cashMovement.aggregate.mockResolvedValueOnce({ _sum: { value: new Prisma.Decimal(80) } });
 
     const result = await reportsService.dashboard();
     expect(result.revenue.toString()).toBe("100");
@@ -184,6 +186,7 @@ test("builds dashboard totals", async () => {
     expect(result.lowStock).toBe(2);
     expect(result.stockReplenishment.toString()).toBe("40");
     expect(result.cashFlow).toHaveLength(10);
+    expect(result.cashBalance.toString()).toBe("120");
 });
 
 test("dashboard cash flow buckets payments, paid expenses and stock purchases by day", async () => {
@@ -199,6 +202,7 @@ test("dashboard cash flow buckets payments, paid expenses and stock purchases by
     prismaMock.$queryRaw.mockResolvedValue([{ total: new Prisma.Decimal(0) }]);
     prismaMock.stockBatch.count.mockResolvedValue(0);
     prismaMock.cashMovement.findMany.mockResolvedValue([]);
+    prismaMock.cashMovement.aggregate.mockResolvedValue({ _sum: { value: new Prisma.Decimal(0) } });
 
     const result = await reportsService.dashboard({ startDate: today, endDate: today });
     expect(result.cashFlow[0].income.toString()).toBe("15");
@@ -219,12 +223,17 @@ test("includes manual cash movements in the cash flow", async () => {
         { type: "DEPOSIT", value: new Prisma.Decimal(50), createdAt: today },
         { type: "WITHDRAWAL", value: new Prisma.Decimal(15), createdAt: today },
     ]);
+    prismaMock.cashMovement.aggregate.mockResolvedValue({ _sum: { value: new Prisma.Decimal(0) } });
 
     const result = await reportsService.dashboard({ startDate: today, endDate: today });
     expect(result.cashFlow).toHaveLength(1);
     expect(result.cashFlow[0].income.toString()).toBe("50");
     expect(result.cashFlow[0].expense.toString()).toBe("15");
-    expect(prismaMock.cashMovement.findMany.mock.calls[0][0].where).toMatchObject({ stockBatchId: null });
+    expect(prismaMock.cashMovement.findMany.mock.calls[0][0].where).toMatchObject({
+        stockBatchId: null,
+        paymentId: null,
+        expenseId: null,
+    });
 });
 
 test("cash movements balance nets deposits against withdrawals", async () => {

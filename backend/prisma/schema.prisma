@@ -300,6 +300,7 @@ model Payment {
   updatedAt     DateTime      @updatedAt
   sale          Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
   createdUser   User          @relation(fields: [createdUserId], references: [id])
+  cashMovement  CashMovement?
 
   @@index([saleId, paidAt])
   @@index([createdUserId])
@@ -341,6 +342,7 @@ model Expense {
   updatedAt         DateTime         @updatedAt
   expenseTemplate   ExpenseTemplate? @relation(fields: [expenseTemplateId], references: [id])
   createdUser       User             @relation(fields: [createdUserId], references: [id])
+  cashMovement      CashMovement?
 
   @@index([status, dueDate])
   @@index([dueDate])
@@ -355,10 +357,14 @@ model CashMovement {
   value         Decimal          @db.Decimal(14, 2)
   obs           String?
   stockBatchId  String?          @unique
+  paymentId     String?          @unique
+  expenseId     String?          @unique
   createdUserId String
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   stockBatch    StockBatch?      @relation(fields: [stockBatchId], references: [id], onDelete: Cascade)
+  payment       Payment?         @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  expense       Expense?         @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   createdUser   User             @relation(fields: [createdUserId], references: [id])
 
   @@index([type, createdAt])

@@ -7,6 +7,7 @@ export type DashboardSummary = {
   profit: string | number
   lowStock: number
   stockReplenishment: string | number
+  cashBalance: string | number
   cashFlow: Array<{
     date: string
     income: string | number
