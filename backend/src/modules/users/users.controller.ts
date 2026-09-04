@@ -13,7 +13,11 @@ export const usersController = {
     create: async (request: FastifyRequest, reply: FastifyReply) =>
         reply.status(201).send(await usersService.create(parse(userSchema, request.body), request.user.sub)),
     update: (request: FastifyRequest) =>
-        usersService.update(parse(userParamsSchema, request.params).id, parse(userSchema.partial(), request.body)),
+        usersService.update(
+            parse(userParamsSchema, request.params).id,
+            parse(userSchema.partial(), request.body),
+            request.user.sub,
+        ),
     archive: async (request: FastifyRequest, reply: FastifyReply) => {
         await usersService.archive(parse(userParamsSchema, request.params).id, request.user.sub);
         return reply.status(204).send();
