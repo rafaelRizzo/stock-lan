@@ -41,8 +41,10 @@ export const usersService = {
             throw error;
         }
     },
-    update: async (id: string, input: { password?: string; [key: string]: unknown }) => {
+    update: async (id: string, input: { password?: string; [key: string]: unknown }, currentUserId: string) => {
         const { password, ...data } = input;
+        if (id === currentUserId && "status" in data && data.status !== "ACTIVE")
+            throw new AppError(409, "Cannot change your own status");
         const user = await prisma.user.findUnique({ where: { id } });
         if (!user) throw new AppError(404, "User not found");
         try {

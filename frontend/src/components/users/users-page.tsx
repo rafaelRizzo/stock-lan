@@ -40,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useCurrentUser } from "@/hooks/auth/use-current-user"
 import {
   useArchiveUser,
   useCreateUser,
@@ -76,6 +77,7 @@ export function UsersPage() {
   })
   const archive = useArchiveUser()
   const restore = useRestoreUser()
+  const { data: currentUser } = useCurrentUser()
 
   return (
     <div className="mx-auto w-full max-w-7xl">
@@ -164,6 +166,7 @@ export function UsersPage() {
             {!users.isLoading &&
               users.data?.data.map((user) => (
                 <UserRow
+                  isSelf={user.id === currentUser?.id}
                   key={user.id}
                   onArchive={setArchiveTarget}
                   onEdit={setEditTarget}
@@ -236,6 +239,7 @@ export function UsersPage() {
 }
 
 function UserRow({
+  isSelf,
   onArchive,
   onEdit,
   onResetPassword,
@@ -243,6 +247,7 @@ function UserRow({
   restoring,
   user,
 }: {
+  isSelf: boolean
   onArchive: (user: User) => void
   onEdit: (user: User) => void
   onResetPassword: (user: User) => void
@@ -303,28 +308,29 @@ function UserRow({
         >
           <KeyRound className="size-4" />
         </Button>
-        {user.status === "ARCHIVED" ? (
-          <Button
-            aria-label={`Restaurar ${user.name}`}
-            className="text-muted-foreground hover:text-foreground"
-            disabled={restoring}
-            onClick={() => onRestore(user)}
-            size="icon-sm"
-            variant="ghost"
-          >
-            <ArchiveRestore className="size-4" />
-          </Button>
-        ) : (
-          <Button
-            aria-label={`Arquivar ${user.name}`}
-            className="text-muted-foreground hover:text-destructive"
-            onClick={() => onArchive(user)}
-            size="icon-sm"
-            variant="ghost"
-          >
-            <Archive className="size-4" />
-          </Button>
-        )}
+        {!isSelf &&
+          (user.status === "ARCHIVED" ? (
+            <Button
+              aria-label={`Restaurar ${user.name}`}
+              className="text-muted-foreground hover:text-foreground"
+              disabled={restoring}
+              onClick={() => onRestore(user)}
+              size="icon-sm"
+              variant="ghost"
+            >
+              <ArchiveRestore className="size-4" />
+            </Button>
+          ) : (
+            <Button
+              aria-label={`Arquivar ${user.name}`}
+              className="text-muted-foreground hover:text-destructive"
+              onClick={() => onArchive(user)}
+              size="icon-sm"
+              variant="ghost"
+            >
+              <Archive className="size-4" />
+            </Button>
+          ))}
       </TableCell>
     </TableRow>
   )

@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
+  History,
   LoaderCircle,
   Pencil,
   Plus,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { DebtorStatementDialog } from "@/components/debtors/debtor-statement-dialog"
 import { PermanentDeleteDialog } from "@/components/shared/permanent-delete-dialog"
 import { TableSkeletonRows } from "@/components/shared/table-skeleton"
 import {
@@ -73,6 +75,7 @@ export function DebtorsPage() {
   const [editTarget, setEditTarget] = useState<Debtor | null>(null)
   const [archiveTarget, setArchiveTarget] = useState<Debtor | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Debtor | null>(null)
+  const [historyTarget, setHistoryTarget] = useState<string | null>(null)
   const debouncedSearch = useDebouncedValue(search)
   const debtors = useDebtors({
     page,
@@ -156,6 +159,7 @@ export function DebtorsPage() {
                   onDelete={setDeleteTarget}
                   onEdit={setEditTarget}
                   onRestore={(item) => restore.mutate(item.id)}
+                  onViewHistory={(item) => setHistoryTarget(item.id)}
                   restoring={restore.isPending}
                 />
               ))}
@@ -194,6 +198,10 @@ export function DebtorsPage() {
         }
         open={Boolean(deleteTarget)}
         resource="devedor"
+      />
+      <DebtorStatementDialog
+        debtorId={historyTarget}
+        onClose={() => setHistoryTarget(null)}
       />
     </div>
   )
@@ -248,6 +256,7 @@ function DebtorRow({
   onDelete,
   onEdit,
   onRestore,
+  onViewHistory,
   restoring,
 }: {
   canArchive: boolean
@@ -257,6 +266,7 @@ function DebtorRow({
   onDelete: (debtor: Debtor) => void
   onEdit: (debtor: Debtor) => void
   onRestore: (debtor: Debtor) => void
+  onViewHistory: (debtor: Debtor) => void
   restoring: boolean
 }) {
   return (
@@ -288,6 +298,15 @@ function DebtorRow({
         )}
       </TableCell>
       <TableCell>
+        <Button
+          aria-label={`Ver histórico de ${debtor.name}`}
+          className="text-muted-foreground hover:text-foreground"
+          onClick={() => onViewHistory(debtor)}
+          size="icon-sm"
+          variant="ghost"
+        >
+          <History className="size-4" />
+        </Button>
         {canEdit && (
           <Button
             aria-label={`Editar ${debtor.name}`}
