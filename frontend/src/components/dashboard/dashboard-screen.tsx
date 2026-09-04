@@ -366,7 +366,10 @@ function DashboardOverview({ userName }: { userName?: string }) {
               <TrendingUp className="size-4" />
             </span>
           </div>
-          <p className="mt-10 text-4xl font-semibold tracking-[-0.05em]">
+          <p className="mt-10 text-xs font-medium text-muted-foreground">
+            Saldo líquido do período
+          </p>
+          <p className="text-4xl font-semibold tracking-[-0.05em]">
             {formatCurrency(cashFlowBalance)}
           </p>
           <CashFlowChart data={data} loading={isLoading} />
