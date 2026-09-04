@@ -344,6 +344,8 @@ function EntryDialog({
   const [quantityTypeId, setQuantityTypeId] = useState("")
   const [quantityIn, setQuantityIn] = useState("")
   const [priceBuy, setPriceBuy] = useState("")
+  const [costMode, setCostMode] = useState<"unit" | "total">("unit")
+  const [totalPaid, setTotalPaid] = useState("")
   const [dateBuy, setDateBuy] = useState(new Date().toISOString().slice(0, 10))
   const [notifyLimit, setNotifyLimit] = useState(false)
   const [quantityNotify, setQuantityNotify] = useState("")
@@ -382,6 +384,8 @@ function EntryDialog({
     setQuantityTypeId("")
     setQuantityIn("")
     setPriceBuy("")
+    setCostMode("unit")
+    setTotalPaid("")
     setDateBuy(new Date().toISOString().slice(0, 10))
     setNotifyLimit(false)
     setQuantityNotify("")
@@ -395,6 +399,8 @@ function EntryDialog({
       setQuantityTypeId(batch.quantityType.id)
       setQuantityIn(String(batch.quantityIn).replace(".", ","))
       setPriceBuy(String(batch.priceBuy).replace(".", ","))
+      setCostMode("unit")
+      setTotalPaid("")
       setDateBuy(batch.dateBuy.slice(0, 10))
       setNotifyLimit(batch.notifyLimit)
       setQuantityNotify(
@@ -410,6 +416,26 @@ function EntryDialog({
     if (!editing && !quantityTypeId && quantityTypes.data?.data.length === 1)
       setQuantityTypeId(quantityTypes.data.data[0].id)
   }, [quantityTypes.data, quantityTypeId, editing])
+  useEffect(() => {
+    if (costMode !== "total") return
+    const quantity = Number(quantityIn.replace(",", "."))
+    const total = Number(totalPaid.replace(",", "."))
+    if (quantity > 0 && total > 0)
+      setPriceBuy((total / quantity).toFixed(2).replace(".", ","))
+    else setPriceBuy("")
+  }, [costMode, totalPaid, quantityIn])
+  function toggleCostMode() {
+    if (costMode === "unit") {
+      const quantity = Number(quantityIn.replace(",", "."))
+      const price = Number(priceBuy.replace(",", "."))
+      setTotalPaid(
+        quantity > 0 && price > 0
+          ? (quantity * price).toFixed(2).replace(".", ",")
+          : ""
+      )
+      setCostMode("total")
+    } else setCostMode("unit")
+  }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const quantity = Number(quantityIn.replace(",", "."))
@@ -525,20 +551,63 @@ function EntryDialog({
                 }
               />
             </Field>
-            <Field label="Custo por unidade">
-              <Input
-                className="h-10 rounded-xl"
-                inputMode="decimal"
-                placeholder="0,00"
-                value={priceBuy}
-                onChange={(event) =>
-                  setPriceBuy(
-                    event.target.value
-                      .replace(/[^0-9,]/g, "")
-                      .replace(/(,.*),/g, "$1")
-                  )
-                }
-              />
+            <Field
+              label={
+                costMode === "unit" ? "Custo por unidade" : "Valor total pago"
+              }
+            >
+              {costMode === "unit" ? (
+                <>
+                  <Input
+                    className="h-10 rounded-xl"
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    value={priceBuy}
+                    onChange={(event) =>
+                      setPriceBuy(
+                        event.target.value
+                          .replace(/[^0-9,]/g, "")
+                          .replace(/(,.*),/g, "$1")
+                      )
+                    }
+                  />
+                  <button
+                    className="block text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    onClick={toggleCostMode}
+                    type="button"
+                  >
+                    Calcular pelo valor total pago
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Input
+                    className="h-10 rounded-xl"
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    value={totalPaid}
+                    onChange={(event) =>
+                      setTotalPaid(
+                        event.target.value
+                          .replace(/[^0-9,]/g, "")
+                          .replace(/(,.*),/g, "$1")
+                      )
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {priceBuy
+                      ? `≈ R$ ${priceBuy} por unidade`
+                      : "Informe a quantidade e o valor total pago"}{" "}
+                    <button
+                      className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                      onClick={toggleCostMode}
+                      type="button"
+                    >
+                      Informar por unidade
+                    </button>
+                  </p>
+                </>
+              )}
             </Field>
             <Field label="Data de compra">
               <div className="h-10">
@@ -697,7 +766,13 @@ function DeleteEntryDialog({
   )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: ReactNode
+  children: ReactNode
+}) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
