@@ -64,6 +64,17 @@ export function DebtorStatementDialog({
     setSalesPage(1)
   }, [debtorId])
 
+  const filteredSales = useMemo(
+    () =>
+      statement.data
+        ? filterSalesByDate(statement.data.sales, saleDateFrom, saleDateTo)
+        : [],
+    [statement.data, saleDateFrom, saleDateTo]
+  )
+  const filteredStatement = statement.data
+    ? { ...statement.data, sales: filteredSales }
+    : undefined
+
   return (
     <Dialog
       onOpenChange={(open) => !open && onClose()}
@@ -85,6 +96,7 @@ export function DebtorStatementDialog({
         )}
         {statement.data && (
           <StatementBody
+            filteredSales={filteredSales}
             onDateChange={(from, to) => {
               setSaleDateFrom(from)
               setSaleDateTo(to)
@@ -104,7 +116,7 @@ export function DebtorStatementDialog({
           {statement.data?.debtor.phone ? (
             <a
               className={cn(buttonVariants({ variant: "outline" }))}
-              href={whatsappStatementLink(statement.data)}
+              href={whatsappStatementLink(filteredStatement!)}
               rel="noreferrer"
               target="_blank"
             >
@@ -122,8 +134,10 @@ export function DebtorStatementDialog({
           )}
           <Button
             className="bg-[#173f31] text-white hover:bg-[#245742]"
-            disabled={!statement.data}
-            onClick={() => statement.data && printStatement(statement.data)}
+            disabled={!filteredStatement}
+            onClick={() =>
+              filteredStatement && printStatement(filteredStatement)
+            }
             type="button"
           >
             <Printer className="size-4" /> Imprimir extrato
@@ -135,6 +149,7 @@ export function DebtorStatementDialog({
 }
 
 function StatementBody({
+  filteredSales,
   onDateChange,
   onPageChange,
   page,
@@ -142,6 +157,7 @@ function StatementBody({
   saleDateTo,
   statement,
 }: {
+  filteredSales: DebtorStatementSale[]
   onDateChange: (from: string, to: string) => void
   onPageChange: (page: number) => void
   page: number
@@ -160,10 +176,6 @@ function StatementBody({
   const totalBalance = totalDebt - totalPaid
   const payments = mergePayments(statement.sales)
 
-  const filteredSales = useMemo(
-    () => filterSalesByDate(statement.sales, saleDateFrom, saleDateTo),
-    [statement.sales, saleDateFrom, saleDateTo]
-  )
   const totalPages = Math.max(
     1,
     Math.ceil(filteredSales.length / SALES_PAGE_SIZE)
