@@ -470,7 +470,7 @@ function buildWhatsappMessage(statement: DebtorStatement) {
     return [
       formatDate(sale.createdAt),
       ...itemLines,
-      `Total: ${formatCurrency(sale.total)} · Saldo: ${formatCurrency(balanceOf(sale))}`,
+      `Total: ${formatCurrency(sale.total)}`,
     ].join("\n")
   })
   const payments = mergePayments(statement.sales)
