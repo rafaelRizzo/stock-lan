@@ -56,7 +56,7 @@ export function LoginScreen() {
             </span>
           </a>
 
-          <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-14 lg:py-8">
+          <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-6 lg:py-8">
             <div className="mb-9">
               <p className="mb-3 text-sm font-medium text-[#658074] dark:text-muted-foreground">
                 Bem-vindo de volta
