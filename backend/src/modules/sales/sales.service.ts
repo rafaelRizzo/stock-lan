@@ -268,6 +268,7 @@ export const salesService = {
                         },
                     });
                 }
+                await tx.payment.deleteMany({ where: { saleId } });
                 return tx.sale.update({
                     where: { id: saleId },
                     data: { status: "CANCELED" },
