@@ -309,9 +309,8 @@ type PaymentReceipt = {
 
 function buildReceiptMessage(receipt: PaymentReceipt) {
   return [
-    `Olá, ${receipt.debtorName}! Recebemos seu pagamento de ${formatCurrency(receipt.paidNow)} via ${paymentMethods[receipt.method]}.`,
+    `Olá! Recebemos seu pagamento de ${formatCurrency(receipt.paidNow)} via ${paymentMethods[receipt.method]}.`,
     "",
-    "Compras em aberto:",
     receipt.saleBlocks.length > 0
       ? receipt.saleBlocks.join("\n\n")
       : "Nenhuma venda em aberto.",

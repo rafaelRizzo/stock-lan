@@ -499,7 +499,7 @@ export function saleBlocksOf(sales: DebtorStatementSale[]) {
 
 function buildWhatsappMessage(statement: DebtorStatement) {
   if (statement.sales.length === 0) {
-    return `Olá, ${statement.debtor.name}! Você não possui pendências em aberto no momento. Obrigado!`
+    return "Olá! Você não possui pendências em aberto no momento. Obrigado!"
   }
 
   const totalDebt = statement.sales.reduce(
