@@ -18,6 +18,7 @@ import {
   formatCurrency,
   paidOf,
   paymentMethods,
+  saleBlocksOf,
 } from "@/components/debtors/debtor-statement-dialog"
 import { SearchableSelect } from "@/components/shared/searchable-select"
 import { TableSkeletonRows } from "@/components/shared/table-skeleton"
@@ -54,6 +55,7 @@ import { getApiErrorMessage } from "@/lib/http"
 import { notify } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 import { debtorsService } from "@/services/debtors.service"
+import { reportsService } from "@/services/reports.service"
 import type { DebtReport } from "@/services/reports.service"
 import type { PaymentMethod } from "@/services/sales.service"
 
@@ -297,6 +299,7 @@ function DebtRow({
 type PaymentReceipt = {
   debtorName: string
   debtorPhone: string | null
+  saleBlocks: string[]
   previousTotal: number
   previousPaid: number
   paidNow: number
@@ -307,6 +310,11 @@ type PaymentReceipt = {
 function buildReceiptMessage(receipt: PaymentReceipt) {
   return [
     `Olá, ${receipt.debtorName}! Recebemos seu pagamento de ${formatCurrency(receipt.paidNow)} via ${paymentMethods[receipt.method]}.`,
+    "",
+    "Compras em aberto:",
+    receipt.saleBlocks.length > 0
+      ? receipt.saleBlocks.join("\n\n")
+      : "Nenhuma venda em aberto.",
     "",
     `Débito em aberto: ${formatCurrency(receipt.previousTotal)}`,
     `Pago anteriormente: ${formatCurrency(receipt.previousPaid)}`,
@@ -348,6 +356,10 @@ function ReceivePaymentDialog({
 
     try {
       setError(null)
+      // Capturado antes do pagamento: depois de pago, as vendas quitadas saem do filtro "em aberto".
+      const openStatement = await reportsService
+        .debtorStatement(debt.debtor.id, true)
+        .catch(() => null)
       await registerPayment.mutateAsync({
         debtorId: debt.debtor.id,
         input: { amount: parsedAmount, method },
@@ -362,6 +374,7 @@ function ReceivePaymentDialog({
       setReceipt({
         debtorName: debtor?.name ?? debt.debtor.name,
         debtorPhone: debtor?.phone ?? null,
+        saleBlocks: saleBlocksOf(openStatement?.sales ?? []),
         previousTotal: Number(debt.total),
         previousPaid: paidOf(debt),
         paidNow: parsedAmount,
