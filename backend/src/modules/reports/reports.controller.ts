@@ -6,6 +6,7 @@ import { paginate } from "../../lib/pagination.js";
 import {
     dashboardReportQuerySchema,
     debtorStatementParamsSchema,
+    debtorStatementQuerySchema,
     debtsReportQuerySchema,
     receiveDebtPaymentSchema,
 } from "./reports.schemas.js";
@@ -22,7 +23,8 @@ export const reportsController = {
     },
     debtorStatement: async (request: FastifyRequest) => {
         const { debtorId } = parse(debtorStatementParamsSchema, request.params);
-        return reportsService.debtorStatement(debtorId);
+        const { onlyOpen } = parse(debtorStatementQuerySchema, request.query);
+        return reportsService.debtorStatement(debtorId, onlyOpen);
     },
     receiveDebtorPayment: async (request: FastifyRequest, reply: FastifyReply) => {
         const { debtorId } = parse(debtorStatementParamsSchema, request.params);

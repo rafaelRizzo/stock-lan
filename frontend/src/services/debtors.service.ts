@@ -34,6 +34,10 @@ export const debtorsService = {
     const { data } = await http.get<PaginatedDebtors>("/debtors", { params })
     return data
   },
+  async get(id: string) {
+    const { data } = await http.get<Debtor>(`/debtors/${id}`)
+    return data
+  },
   async create(input: DebtorInput) {
     const { data } = await http.post<Debtor>("/debtors", input)
     return data

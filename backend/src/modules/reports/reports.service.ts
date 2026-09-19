@@ -242,12 +242,12 @@ export const reportsService = {
             return payments;
         }),
 
-    debtorStatement: async (debtorId: string) =>
-        getOrSetLocal(`reports:debtor-statement:${debtorId}`, 30, async () => {
+    debtorStatement: async (debtorId: string, onlyOpen = false) =>
+        getOrSetLocal(`reports:debtor-statement:${debtorId}:${onlyOpen}`, 30, async () => {
             const debtor = await prisma.debtor.findUnique({ where: { id: debtorId } });
             if (!debtor) throw new AppError(404, "Debtor not found");
             const sales = await prisma.sale.findMany({
-                where: { debtorId, status: { not: "CANCELED" } },
+                where: onlyOpen ? { debtorId, status: "DEBT" } : { debtorId, status: { not: "CANCELED" } },
                 include: {
                     payments: { orderBy: { paidAt: "asc" } },
                     items: { include: { product: { select: { name: true } } }, orderBy: { createdAt: "asc" } },

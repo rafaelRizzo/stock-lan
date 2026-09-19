@@ -10,6 +10,10 @@ export const debtsReportQuerySchema = paginationSchema.extend({
 
 export const debtorStatementParamsSchema = z.object({ debtorId: z.string().cuid() });
 
+export const debtorStatementQuerySchema = z.object({
+    onlyOpen: z.coerce.boolean().optional().default(false),
+});
+
 export const receiveDebtPaymentSchema = z.object({
     amount: z.coerce.number().positive().max(MAX_MONEY),
     method: z.enum(["CASH", "PIX", "CARD", "BANK_TRANSFER", "OTHER"]),
