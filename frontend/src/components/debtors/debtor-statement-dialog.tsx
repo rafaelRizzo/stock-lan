@@ -473,11 +473,14 @@ ${buildStatementReceiptHtml(statement)}
   printWindow.print()
 }
 
-export function whatsappStatementLink(statement: DebtorStatement) {
-  const digits = (statement.debtor.phone ?? "").replace(/\D/g, "")
+export function buildWhatsappLink(phone: string | null | undefined, text: string) {
+  const digits = (phone ?? "").replace(/\D/g, "")
   const withDdi = digits.startsWith("55") ? digits : `55${digits}`
-  const text = buildWhatsappMessage(statement)
   return `https://wa.me/${withDdi}?text=${encodeURIComponent(text)}`
+}
+
+export function whatsappStatementLink(statement: DebtorStatement) {
+  return buildWhatsappLink(statement.debtor.phone, buildWhatsappMessage(statement))
 }
 
 function buildWhatsappMessage(statement: DebtorStatement) {
