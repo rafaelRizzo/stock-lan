@@ -13,11 +13,11 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { DateRangePicker } from "@/components/shared/date-range-picker"
 import {
   balanceOf,
+  buildWhatsappLink,
   DebtorStatementDialog,
   formatCurrency,
   paidOf,
   paymentMethods,
-  whatsappStatementLink,
 } from "@/components/debtors/debtor-statement-dialog"
 import { SearchableSelect } from "@/components/shared/searchable-select"
 import { TableSkeletonRows } from "@/components/shared/table-skeleton"
@@ -46,7 +46,6 @@ import {
 } from "@/components/ui/table"
 import { useDebtors } from "@/hooks/debtors/use-debtors"
 import {
-  useDebtorStatement,
   useDebtReports,
   useRegisterDebtPayment,
 } from "@/hooks/reports/use-dashboard-summary"
@@ -295,6 +294,29 @@ function DebtRow({
   )
 }
 
+type PaymentReceipt = {
+  debtorName: string
+  debtorPhone: string | null
+  previousTotal: number
+  previousPaid: number
+  paidNow: number
+  remaining: number
+  method: PaymentMethod
+}
+
+function buildReceiptMessage(receipt: PaymentReceipt) {
+  return [
+    `Olá, ${receipt.debtorName}! Recebemos seu pagamento de ${formatCurrency(receipt.paidNow)} via ${paymentMethods[receipt.method]}.`,
+    "",
+    `Débito em aberto: ${formatCurrency(receipt.previousTotal)}`,
+    `Pago anteriormente: ${formatCurrency(receipt.previousPaid)}`,
+    `Pago agora: ${formatCurrency(receipt.paidNow)}`,
+    `Saldo restante: ${formatCurrency(receipt.remaining)}`,
+    "",
+    receipt.remaining <= 0 ? "Pagamento quitado. Obrigado!" : "Obrigado!",
+  ].join("\n")
+}
+
 function ReceivePaymentDialog({
   debt,
   onClose,
@@ -305,18 +327,15 @@ function ReceivePaymentDialog({
   const [amount, setAmount] = useState("")
   const [method, setMethod] = useState<PaymentMethod>("PIX")
   const [error, setError] = useState<string | null>(null)
-  const [sendPromptDebtorId, setSendPromptDebtorId] = useState<string | null>(
-    null
-  )
+  const [receipt, setReceipt] = useState<PaymentReceipt | null>(null)
   const registerPayment = useRegisterDebtPayment()
-  const statement = useDebtorStatement(sendPromptDebtorId ?? undefined, true)
   const balance = debt ? balanceOf(debt) : 0
 
   useEffect(() => {
     if (debt) setAmount(String(balance).replace(".", ","))
     setMethod("PIX")
     setError(null)
-    setSendPromptDebtorId(null)
+    setReceipt(null)
   }, [debt, balance])
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -327,31 +346,34 @@ function ReceivePaymentDialog({
       return setError("Informe um valor válido.")
     if (parsedAmount > balance) return setError("O valor excede o saldo.")
 
-    debtorsService
-      .get(debt.debtor.id)
-      .then((debtor) => {
-        if (!debtor.phone) {
-          notify.warning(
-            "Cliente sem telefone cadastrado",
-            "Não será possível enviar o extrato por WhatsApp."
-          )
-        }
-      })
-      .catch(() => {})
-
     try {
       setError(null)
       await registerPayment.mutateAsync({
         debtorId: debt.debtor.id,
         input: { amount: parsedAmount, method },
       })
-      setSendPromptDebtorId(debt.debtor.id)
+      const debtor = await debtorsService.get(debt.debtor.id).catch(() => null)
+      if (debtor && !debtor.phone) {
+        notify.warning(
+          "Cliente sem telefone cadastrado",
+          "Não será possível enviar o comprovante por WhatsApp."
+        )
+      }
+      setReceipt({
+        debtorName: debtor?.name ?? debt.debtor.name,
+        debtorPhone: debtor?.phone ?? null,
+        previousTotal: Number(debt.total),
+        previousPaid: paidOf(debt),
+        paidNow: parsedAmount,
+        remaining: balance - parsedAmount,
+        method,
+      })
     } catch (cause) {
       setError(getApiErrorMessage(cause))
     }
   }
 
-  if (sendPromptDebtorId) {
+  if (receipt) {
     return (
       <Dialog
         onOpenChange={(open) => !open && onClose()}
@@ -361,8 +383,7 @@ function ReceivePaymentDialog({
           <DialogHeader>
             <DialogTitle>Pagamento registrado</DialogTitle>
             <DialogDescription>
-              Deseja enviar o extrato atualizado para{" "}
-              {debt?.debtor?.name ?? debt?.clientName ?? "o cliente"} pelo
+              Deseja enviar o comprovante para {receipt.debtorName} pelo
               WhatsApp?
             </DialogDescription>
           </DialogHeader>
@@ -370,10 +391,13 @@ function ReceivePaymentDialog({
             <Button onClick={onClose} type="button" variant="outline">
               Não, obrigado
             </Button>
-            {statement.data?.debtor.phone ? (
+            {receipt.debtorPhone ? (
               <a
                 className={cn(buttonVariants({ variant: "outline" }))}
-                href={whatsappStatementLink(statement.data)}
+                href={buildWhatsappLink(
+                  receipt.debtorPhone,
+                  buildReceiptMessage(receipt)
+                )}
                 onClick={onClose}
                 rel="noreferrer"
                 target="_blank"
@@ -383,17 +407,10 @@ function ReceivePaymentDialog({
             ) : (
               <Button
                 disabled
-                title={
-                  statement.isLoading
-                    ? "Carregando..."
-                    : "Cliente sem telefone cadastrado"
-                }
+                title="Cliente sem telefone cadastrado"
                 type="button"
                 variant="outline"
               >
-                {statement.isLoading && (
-                  <LoaderCircle className="size-4 animate-spin" />
-                )}
                 <MessageCircle className="size-4" /> Enviar no WhatsApp
               </Button>
             )}
