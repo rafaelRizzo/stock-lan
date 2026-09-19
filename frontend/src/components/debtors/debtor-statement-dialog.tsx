@@ -483,6 +483,20 @@ export function whatsappStatementLink(statement: DebtorStatement) {
   return buildWhatsappLink(statement.debtor.phone, buildWhatsappMessage(statement))
 }
 
+export function saleBlocksOf(sales: DebtorStatementSale[]) {
+  return sales.map((sale) => {
+    const itemLines = (sale.items ?? []).map(
+      (item) =>
+        `${String(item.quantity).replace(".", ",")}x ${item.product.name} - ${formatCurrency(item.priceTotal)}`
+    )
+    return [
+      formatDate(sale.createdAt),
+      ...itemLines,
+      `Total: ${formatCurrency(sale.total)}`,
+    ].join("\n")
+  })
+}
+
 function buildWhatsappMessage(statement: DebtorStatement) {
   if (statement.sales.length === 0) {
     return `Olá, ${statement.debtor.name}! Você não possui pendências em aberto no momento. Obrigado!`
@@ -496,17 +510,7 @@ function buildWhatsappMessage(statement: DebtorStatement) {
     (total, sale) => total + paidOf(sale),
     0
   )
-  const saleBlocks = statement.sales.map((sale) => {
-    const itemLines = (sale.items ?? []).map(
-      (item) =>
-        `${String(item.quantity).replace(".", ",")}x ${item.product.name} - ${formatCurrency(item.priceTotal)}`
-    )
-    return [
-      formatDate(sale.createdAt),
-      ...itemLines,
-      `Total: ${formatCurrency(sale.total)}`,
-    ].join("\n")
-  })
+  const saleBlocks = saleBlocksOf(statement.sales)
   const payments = mergePayments(statement.sales)
   const paymentLines = payments.map(
     (payment) =>
