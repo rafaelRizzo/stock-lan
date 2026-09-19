@@ -1875,11 +1875,20 @@ test("reports debtorStatement throws 404 when the debtor is missing", async () =
     await expect(reportsService.debtorStatement("missing")).rejects.toMatchObject({ statusCode: 404 });
 });
 
-test("reports debtorStatement returns the debtor with their non-canceled sales", async () => {
+test("reports debtorStatement returns the debtor with their non-canceled sales by default", async () => {
     prismaMock.debtor.findUnique.mockResolvedValue({ id: "d1", name: "Ana" });
     prismaMock.sale.findMany.mockResolvedValue([{ id: "s1" }]);
     const result = await reportsService.debtorStatement("d1");
     expect(result).toEqual({ debtor: { id: "d1", name: "Ana" }, sales: [{ id: "s1" }] });
+    expect(prismaMock.sale.findMany.mock.calls[0][0].where).toEqual({ debtorId: "d1", status: { not: "CANCELED" } });
+});
+
+test("reports debtorStatement filters to only outstanding sales when onlyOpen is true", async () => {
+    prismaMock.debtor.findUnique.mockResolvedValue({ id: "d1", name: "Ana" });
+    prismaMock.sale.findMany.mockResolvedValue([{ id: "s1", status: "DEBT" }]);
+    const result = await reportsService.debtorStatement("d1", true);
+    expect(result).toEqual({ debtor: { id: "d1", name: "Ana" }, sales: [{ id: "s1", status: "DEBT" }] });
+    expect(prismaMock.sale.findMany.mock.calls[0][0].where).toEqual({ debtorId: "d1", status: "DEBT" });
 });
 
 // ---- expenses.service (list / create / delete) ----

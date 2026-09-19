@@ -12,6 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { useDebtorStatement } from "@/hooks/reports/use-dashboard-summary"
 import { cn } from "@/lib/utils"
 import type {
@@ -53,12 +55,14 @@ export function DebtorStatementDialog({
   debtorId: string | null
   onClose: () => void
 }) {
-  const statement = useDebtorStatement(debtorId ?? undefined)
+  const [onlyOpen, setOnlyOpen] = useState(true)
+  const statement = useDebtorStatement(debtorId ?? undefined, onlyOpen)
   const [saleDateFrom, setSaleDateFrom] = useState("")
   const [saleDateTo, setSaleDateTo] = useState("")
   const [salesPage, setSalesPage] = useState(1)
 
   useEffect(() => {
+    setOnlyOpen(true)
     setSaleDateFrom("")
     setSaleDateTo("")
     setSalesPage(1)
@@ -74,6 +78,13 @@ export function DebtorStatementDialog({
   const filteredStatement = statement.data
     ? { ...statement.data, sales: filteredSales }
     : undefined
+  // A mensagem de WhatsApp nunca deve incluir vendas já quitadas, mesmo com o toggle "mostrar tudo" ligado.
+  const openWhatsappStatement = filteredStatement
+    ? {
+        ...filteredStatement,
+        sales: filteredStatement.sales.filter((sale) => sale.status === "DEBT"),
+      }
+    : undefined
 
   return (
     <Dialog
@@ -86,9 +97,25 @@ export function DebtorStatementDialog({
             {statement.data?.debtor.name ?? "Extrato do devedor"}
           </DialogTitle>
           <DialogDescription>
-            Histórico completo de vendas e recebimentos.
+            {onlyOpen
+              ? "Apenas vendas em aberto e seus recebimentos."
+              : "Histórico completo de vendas e recebimentos."}
           </DialogDescription>
         </DialogHeader>
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={onlyOpen}
+            id="only-open"
+            onCheckedChange={(checked) => {
+              setOnlyOpen(checked)
+              setSalesPage(1)
+            }}
+            size="sm"
+          />
+          <Label className="text-sm font-normal text-muted-foreground" htmlFor="only-open">
+            Mostrar apenas o que está em aberto
+          </Label>
+        </div>
         {statement.isLoading && (
           <p className="py-8 text-center text-sm text-muted-foreground">
             Carregando histórico...
@@ -116,7 +143,7 @@ export function DebtorStatementDialog({
           {statement.data?.debtor.phone ? (
             <a
               className={cn(buttonVariants({ variant: "outline" }))}
-              href={whatsappStatementLink(filteredStatement!)}
+              href={whatsappStatementLink(openWhatsappStatement!)}
               rel="noreferrer"
               target="_blank"
             >
@@ -454,6 +481,10 @@ export function whatsappStatementLink(statement: DebtorStatement) {
 }
 
 function buildWhatsappMessage(statement: DebtorStatement) {
+  if (statement.sales.length === 0) {
+    return `Olá, ${statement.debtor.name}! Você não possui pendências em aberto no momento. Obrigado!`
+  }
+
   const totalDebt = statement.sales.reduce(
     (total, sale) => total + Number(sale.total),
     0
@@ -480,7 +511,7 @@ function buildWhatsappMessage(statement: DebtorStatement) {
   )
 
   return [
-    "Olá, segue seu extrato de conta:",
+    "Olá, segue seu extrato de conta em aberto:",
     "",
     "Vendas:",
     saleBlocks.join("\n\n"),

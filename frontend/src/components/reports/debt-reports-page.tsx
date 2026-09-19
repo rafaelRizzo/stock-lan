@@ -52,7 +52,9 @@ import {
 } from "@/hooks/reports/use-dashboard-summary"
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { getApiErrorMessage } from "@/lib/http"
+import { notify } from "@/lib/toast"
 import { cn } from "@/lib/utils"
+import { debtorsService } from "@/services/debtors.service"
 import type { DebtReport } from "@/services/reports.service"
 import type { PaymentMethod } from "@/services/sales.service"
 
@@ -307,7 +309,7 @@ function ReceivePaymentDialog({
     null
   )
   const registerPayment = useRegisterDebtPayment()
-  const statement = useDebtorStatement(sendPromptDebtorId ?? undefined)
+  const statement = useDebtorStatement(sendPromptDebtorId ?? undefined, true)
   const balance = debt ? balanceOf(debt) : 0
 
   useEffect(() => {
@@ -324,6 +326,18 @@ function ReceivePaymentDialog({
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0)
       return setError("Informe um valor válido.")
     if (parsedAmount > balance) return setError("O valor excede o saldo.")
+
+    debtorsService
+      .get(debt.debtor.id)
+      .then((debtor) => {
+        if (!debtor.phone) {
+          notify.warning(
+            "Cliente sem telefone cadastrado",
+            "Não será possível enviar o extrato por WhatsApp."
+          )
+        }
+      })
+      .catch(() => {})
 
     try {
       setError(null)

@@ -32,10 +32,13 @@ export function useDebtReports(params: {
   })
 }
 
-export function useDebtorStatement(debtorId: string | undefined) {
+export function useDebtorStatement(
+  debtorId: string | undefined,
+  onlyOpen?: boolean
+) {
   return useQuery({
-    queryKey: ["reports", "debtor-statement", debtorId],
-    queryFn: () => reportsService.debtorStatement(debtorId as string),
+    queryKey: ["reports", "debtor-statement", debtorId, onlyOpen],
+    queryFn: () => reportsService.debtorStatement(debtorId as string, onlyOpen),
     enabled: Boolean(debtorId),
   })
 }

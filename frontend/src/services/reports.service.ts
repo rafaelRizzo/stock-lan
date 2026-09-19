@@ -87,9 +87,10 @@ export const reportsService = {
     })
     return data
   },
-  async debtorStatement(debtorId: string) {
+  async debtorStatement(debtorId: string, onlyOpen?: boolean) {
     const { data } = await http.get<DebtorStatement>(
-      `/reports/debtors/${debtorId}/statement`
+      `/reports/debtors/${debtorId}/statement`,
+      { params: onlyOpen ? { onlyOpen } : undefined }
     )
     return data
   },
